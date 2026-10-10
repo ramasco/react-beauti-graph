@@ -24,3 +24,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Packed library (attached to GitHub releases)
+release
+*.tgz

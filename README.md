@@ -20,8 +20,10 @@ nodes grouped in folders, placed on a grid layout, with search, a details panel 
 
 ## Install
 
+From the [GitHub release](https://github.com/ramasco/react-beauti-graph/releases/latest):
+
 ```bash
-npm install react-beauti-graph
+npm install https://github.com/ramasco/react-beauti-graph/releases/download/v1.0.0/react-beauti-graph-1.0.0.tgz
 ```
 
 Requires React 18 or newer. Cytoscape is installed automatically.
