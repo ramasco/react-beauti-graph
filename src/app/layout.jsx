@@ -1,5 +1,5 @@
 import '../index.css';
-import '../App.css';
+import '../react-beauti-graph.css';
 
 export const metadata = {
   title: 'cytoscape-sbgn-react',

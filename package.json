@@ -1,29 +1,69 @@
 {
-  "name": "cytoscape-sbgn-react",
-  "private": true,
+  "name": "react-beauti-graph",
   "version": "1.0.0",
+  "description": "React graph component built on Cytoscape: folders, grid layout, two-way arrows, search, details panel and clipboard export.",
+  "keywords": [
+    "react",
+    "graph",
+    "cytoscape",
+    "dependency-graph",
+    "network",
+    "diagram",
+    "visualization"
+  ],
+  "author": "Antonio Ramasco",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/ramasco/react-beauti-graph#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ramasco/react-beauti-graph.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ramasco/react-beauti-graph/issues"
+  },
   "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./style.css": "./dist/style.css",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "NOTICE"
+  ],
+  "sideEffects": [
+    "*.css"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "build:lib": "vite build -c vite.lib.config.mjs",
+    "prepublishOnly": "npm test && npm run build:lib"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
   },
   "dependencies": {
-    "cytoscape": "^3.26.0",
-    "cytoscape-sbgn-stylesheet": "^4.0.2",
-    "next": "^16.4.0",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "cytoscape": "^3.26.0"
   },
   "devDependencies": {
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.7",
     "@vitejs/plugin-react": "^6.1.2",
     "jsdom": "^29.1.1",
+    "next": "^16.4.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "vite": "^8.3.4",
     "vitest": "^5.0.3"
-  },
-  "license": "Apache-2.0",
-  "author": "Antonio Ramasco"
+  }
 }

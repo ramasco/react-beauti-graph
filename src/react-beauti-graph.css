@@ -1,4 +1,14 @@
-.controls {
+/* react-beauti-graph styles: everything is scoped under .rbg-graph */
+
+.rbg-graph {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  height: 100%;
+  min-height: 0;
+}
+
+.rbg-graph .controls {
   padding: 10px 14px;
   background: #fafafa;
   border-bottom: 1px solid #ddd;
@@ -10,17 +20,17 @@
   z-index: 10;
 }
 
-.controls label {
+.rbg-graph .controls label {
   font-size: 14px;
   color: #0066cc;
 }
 
-.help {
+.rbg-graph .help {
   position: relative;
   display: inline-flex;
 }
 
-.help-icon {
+.rbg-graph .help-icon {
   width: 20px;
   height: 20px;
   padding: 0;
@@ -34,7 +44,7 @@
   cursor: help;
 }
 
-.help-tooltip {
+.rbg-graph .help-tooltip {
   display: none;
   position: absolute;
   top: calc(100% + 6px);
@@ -52,16 +62,16 @@
 }
 
 /* Show on hover, or when the icon is clicked/focused with the keyboard */
-.help:hover .help-tooltip,
-.help-icon:focus + .help-tooltip {
+.rbg-graph .help:hover .help-tooltip,
+.rbg-graph .help-icon:focus + .help-tooltip {
   display: block;
 }
 
-.node-search {
+.rbg-graph .node-search {
   position: relative;
 }
 
-.node-search input {
+.rbg-graph .node-search input {
   padding: 6px 28px 6px 10px;
   font-size: 14px;
   min-width: 260px;
@@ -71,13 +81,13 @@
   border-radius: 4px;
 }
 
-.node-search input::placeholder {
+.rbg-graph .node-search input::placeholder {
   color: #0066cc;
   font-weight: normal;
   opacity: 0.7;
 }
 
-.node-search-clear {
+.rbg-graph .node-search-clear {
   position: absolute;
   right: 6px;
   top: 50%;
@@ -90,7 +100,7 @@
   cursor: pointer;
 }
 
-.node-search-list {
+.rbg-graph .node-search-list {
   position: absolute;
   top: calc(100% + 2px);
   left: 0;
@@ -107,36 +117,36 @@
   z-index: 1000;
 }
 
-.node-search-list li {
+.rbg-graph .node-search-list li {
   padding: 5px 10px;
   font-size: 14px;
   color: #0066cc;
   cursor: pointer;
 }
 
-.node-search-list li.active {
+.rbg-graph .node-search-list li.active {
   background: #e8f0fb;
 }
 
-.node-search-list li.node-search-empty {
+.rbg-graph .node-search-list li.node-search-empty {
   cursor: default;
   opacity: 0.7;
 }
 
-.graph-area {
+.rbg-graph .graph-area {
   flex: 1;
   min-height: 0;
   display: flex;
 }
 
-.cy-container {
+.rbg-graph .cy-container {
   flex: 1;
   min-height: 0;
   min-width: 0;
   background: #fff;
 }
 
-.node-info-panel {
+.rbg-graph .node-info-panel {
   width: 300px;
   flex-shrink: 0;
   overflow-y: auto;
@@ -147,14 +157,14 @@
   font-size: 14px;
 }
 
-.node-info-header {
+.rbg-graph .node-info-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
 }
 
-.node-info-header h2 {
+.rbg-graph .node-info-header h2 {
   margin: 0 0 8px;
   font-size: 14px;
   font-weight: normal;
@@ -162,7 +172,7 @@
   word-break: break-word;
 }
 
-.node-info-header button {
+.rbg-graph .node-info-header button {
   border: none;
   background: none;
   font-size: 14px;
@@ -171,20 +181,20 @@
   cursor: pointer;
 }
 
-.node-info-panel h3 {
+.rbg-graph .node-info-panel h3 {
   margin: 16px 0 6px;
   font-size: 14px;
   font-weight: bold;
   color: #0066cc;
 }
 
-.node-info-panel ul {
+.rbg-graph .node-info-panel ul {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-.node-info-panel li button {
+.rbg-graph .node-info-panel li button {
   display: block;
   width: 100%;
   padding: 4px 6px;
@@ -196,16 +206,15 @@
   cursor: pointer;
 }
 
-.node-info-panel li button:hover {
+.rbg-graph .node-info-panel li button:hover {
   background: #e8f0fb;
 }
 
-.node-info-panel li span {
+.rbg-graph .node-info-panel li span {
   color: #0066cc;
 }
 
-
-.node-context-menu {
+.rbg-graph .node-context-menu {
   position: fixed;
   z-index: 1000;
   background: #fff;
@@ -216,7 +225,7 @@
   min-width: 150px;
 }
 
-.node-context-menu button {
+.rbg-graph .node-context-menu button {
   display: block;
   width: 100%;
   padding: 6px 14px;
@@ -228,6 +237,6 @@
   cursor: pointer;
 }
 
-.node-context-menu button:hover {
+.rbg-graph .node-context-menu button:hover {
   background: #e8f0fb;
 }

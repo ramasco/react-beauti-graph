@@ -14,10 +14,19 @@ nodes grouped in folders, placed on a grid layout, with search, a details panel 
 - **Details panel** (double click or search): node, group, parent nodes and child nodes; click a name to jump to it
 - **Save to clipboard** (right click): copies the same information as the details panel
 
+## Install
+
+```bash
+npm install react-beauti-graph
+```
+
+Requires React 18 or newer. Cytoscape is installed automatically.
+
 ## Usage
 
 ```jsx
-import { create_graph } from './graphFactory';
+import { create_graph } from 'react-beauti-graph';
+import 'react-beauti-graph/style.css';
 
 const MyGraph = create_graph(
   // folders: name -> nodes inside it
@@ -38,16 +47,35 @@ const MyGraph = create_graph(
 );
 
 export default function Page() {
-  return <MyGraph />;
+  // The graph fills its container, so give the container a height
+  return (
+    <div style={{ height: '100vh' }}>
+      <MyGraph />
+    </div>
+  );
 }
 ```
+
+Works in Next.js (App Router) out of the box: the library is marked `'use client'`.
+
+### `create_graph(folders, connections, layout, options)`
+
+| Argument | Type | Description |
+|---|---|---|
+| `folders` | `{ [folderName]: string[] }` | Nodes inside each folder (group). A node may be in several folders. |
+| `connections` | `[source, target][]` | Arrows between nodes. `[a, b]` + `[b, a]` draw one two-way arrow; `[a, a]` draws a loop. |
+| `layout` | `string[][]` | Grid positions, one row per layer. Nodes listed only here are still shown. |
+| `options` | `{ offsetX, offsetY, startX, startY }` | Grid spacing and origin in pixels. |
+
+Returns a React component.
 
 ## Development
 
 ```bash
 npm install
-npm run dev     # http://localhost:3000
-npm test        # unit tests
+npm run dev        # demo app at http://localhost:3000
+npm test           # unit tests
+npm run build:lib  # build the npm package into dist/
 ```
 
 ## License and credits

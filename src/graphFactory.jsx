@@ -7,7 +7,7 @@
  * "save to clipboard" context menu.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import cytoscape from 'cytoscape';
 
 const BLUE = '#0066cc';
@@ -385,11 +385,12 @@ export const STYLES = [
 /**
  * Searchable node picker: typing any part of a name (case-insensitive) filters the list.
  * Arrow keys move through the matches, Enter picks one, Escape closes the list.
+ * @param {string} [id] - id for the input (to link a <label>)
  * @param {{id: string, label: string}[]} options - Nodes to choose from
  * @param {string} selectedId - Currently selected node id ('' for none)
  * @param {(id: string) => void} onSelect - Called with the chosen node id
  */
-export function NodeSearch({ options, selectedId, onSelect }) {
+export function NodeSearch({ id, options, selectedId, onSelect }) {
   const [query, setQuery] = useState(''); // text shown in the box
   const [filter, setFilter] = useState(''); // text typed since the list opened
   const [open, setOpen] = useState(false);
@@ -462,7 +463,7 @@ export function NodeSearch({ options, selectedId, onSelect }) {
   return (
     <div className="node-search" ref={boxRef}>
       <input
-        id="nodeSelect"
+        id={id}
         type="text"
         value={query}
         placeholder="-- type to search --"
@@ -544,6 +545,7 @@ export function create_graph(
   function Graph() {
     const containerRef = useRef(null);
     const cyRef = useRef(null);
+    const uid = useId(); // unique ids, so several graphs can share a page
     const [nodeOptions, setNodeOptions] = useState([]);
     const [selectedId, setSelectedId] = useState('');
     const [showFolders, setShowFolders] = useState(true);
@@ -673,10 +675,11 @@ export function create_graph(
     }, []);
 
     return (
-      <>
+      <div className="rbg-graph">
         <div className="controls">
-          <label htmlFor="nodeSelect">Select a node:</label>
+          <label htmlFor={`${uid}-search`}>Select a node:</label>
           <NodeSearch
+            id={`${uid}-search`}
             options={nodeOptions}
             selectedId={selectedId}
             // Picking a node also opens its details panel, like a double click
@@ -699,10 +702,10 @@ export function create_graph(
             Add Group to Node Name
           </label>
           <span className="help">
-            <button type="button" className="help-icon" aria-label="Help" aria-describedby="graphHelp">
+            <button type="button" className="help-icon" aria-label="Help" aria-describedby={`${uid}-help`}>
               ?
             </button>
-            <span id="graphHelp" role="tooltip" className="help-tooltip">
+            <span id={`${uid}-help`} role="tooltip" className="help-tooltip">
               <strong>Double click</strong> on a node to see its information, parents and children.
               <br />
               <strong>Right click</strong> on a node to save the same information to the clipboard.
@@ -750,7 +753,7 @@ export function create_graph(
             </button>
           </div>
         )}
-      </>
+      </div>
     );
   }
 
