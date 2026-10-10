@@ -2,8 +2,7 @@ import '../index.css';
 import '../react-beauti-graph.css';
 
 export const metadata = {
-  title: 'cytoscape-sbgn-react',
-  icons: { icon: '/favicon.svg' },
+  title: 'react-beauti-graph',
 };
 
 export default function RootLayout({ children }) {
