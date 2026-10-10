@@ -28,3 +28,6 @@ dist-ssr
 # Packed library (attached to GitHub releases)
 release
 *.tgz
+
+# Lock file kept locally only
+package-lock.json
