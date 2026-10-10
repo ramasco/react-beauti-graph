@@ -1,11 +1,13 @@
 'use client';
 
 import { create_graph } from './graphFactory';
-import { folders, nodes, layout } from './bigGraphData';
+// import { folders, nodes, layout } from './bigGraphData';
+import { folders, nodes, layout, options } from './smallGraphData';
 
-// 100 reports, 5 folders, 10 layers (data in bigGraphData.js)
-const MyGraph = create_graph(folders, nodes, layout, { offsetX: 280, offsetY: 160 });
-
+// Small example (data in smallGraphData.js).
+// For the 100-report example, switch the import above to bigGraphData
+// and use { offsetX: 280, offsetY: 160 } as options.
+const MyGraph = create_graph(folders, nodes, layout, options);
 
 export default function Page() {
   return <MyGraph />;
