@@ -1,16 +1,60 @@
-# React + Vite
+# react-beauti-graph
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+**react-beauti-graph by Antonio Ramasco**
 
-Currently, two official plugins are available:
+A React component for drawing report dependency graphs with [Cytoscape](https://js.cytoscape.org/):
+nodes grouped in folders, placed on a grid layout, with search, a details panel and clipboard export.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Features
 
-## React Compiler
+- **Folders (groups)** drawn as dashed boxes around their nodes; can be hidden with *Show Groups*
+- **Grid layout**: one row per layer, defined as a list of rows
+- **Connections** as arrows; `[a, b]` + `[b, a]` become one line with arrows at both ends; self connections drawn as a loop
+- **Search box**: partial, case-insensitive search of any node, sorted alphabetically
+- **Details panel** (double click or search): node, group, parent nodes and child nodes; click a name to jump to it
+- **Save to clipboard** (right click): copies the same information as the details panel
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Usage
 
-## Expanding the Oxlint configuration
+```jsx
+import { create_graph } from './graphFactory';
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+const MyGraph = create_graph(
+  // folders: name -> nodes inside it
+  { Sales: ['r001', 'r002'], Finance: ['r003'] },
+  // connections: [source, target]
+  [
+    ['r001', 'r002'],
+    ['r002', 'r001'],
+    ['r002', 'r003'],
+  ],
+  // layout: one row per layer
+  [
+    ['r001', 'r002'],
+    ['r003'],
+  ],
+  // options: spacing of the grid
+  { offsetX: 280, offsetY: 160 }
+);
+
+export default function Page() {
+  return <MyGraph />;
+}
+```
+
+## Development
+
+```bash
+npm install
+npm run dev     # http://localhost:3000
+npm test        # unit tests
+```
+
+## License and credits
+
+Licensed under the [Apache License 2.0](LICENSE).
+
+You are free to use, modify and distribute this library, including in commercial
+products, provided you keep the attribution in the [NOTICE](NOTICE) file:
+
+> react-beauti-graph by Antonio Ramasco
