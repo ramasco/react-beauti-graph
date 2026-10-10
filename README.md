@@ -5,6 +5,10 @@
 A React component for drawing report dependency graphs with [Cytoscape](https://js.cytoscape.org/):
 nodes grouped in folders, placed on a grid layout, with search, a details panel and clipboard export.
 
+![react-beauti-graph example: Sales and Finance folders, a two-way arrow between r001 and r002, and the details panel for r001](https://raw.githubusercontent.com/ramasco/react-beauti-graph/main/docs/example.jpg)
+
+*The [usage example](#usage) below, with `r001` selected.*
+
 ## Features
 
 - **Folders (groups)** drawn as dashed boxes around their nodes; can be hidden with *Show Groups*
