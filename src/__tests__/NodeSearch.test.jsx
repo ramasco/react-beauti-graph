@@ -121,6 +121,31 @@ describe('NodeSearch', () => {
     expect(input.value).toBe('');
   });
 
+  it('has no checkboxes unless onToggleVisible is given', async () => {
+    const { user, input } = setup();
+    await user.click(input);
+    expect(screen.queryAllByRole('checkbox')).toEqual([]);
+  });
+
+  it('shows a checkbox next to each node (not ALL), on unless hidden', async () => {
+    const { user, input } = setup({ hiddenIds: new Set(['r002']), onToggleVisible: vi.fn() });
+    await user.click(input);
+    const boxes = screen.getAllByRole('checkbox');
+    expect(boxes).toHaveLength(OPTIONS.length);
+    expect(boxes.map((b) => b.checked)).toEqual([true, false, true, true]);
+    expect(screen.getByLabelText('Show r002 (Sales)').closest('li').className).toContain('off');
+  });
+
+  it('clicking a checkbox toggles the node without picking it, and keeps the list open', async () => {
+    const onToggleVisible = vi.fn();
+    const { user, input, onSelect, listItems } = setup({ hiddenIds: new Set(), onToggleVisible });
+    await user.click(input);
+    await user.click(screen.getByLabelText('Show r021 (Finance)'));
+    expect(onToggleVisible).toHaveBeenCalledWith('r021');
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(listItems().length).toBe(OPTIONS.length + 1);
+  });
+
   it('closes the list when clicking outside', async () => {
     const { user, input, listItems } = setup();
     await user.click(input);

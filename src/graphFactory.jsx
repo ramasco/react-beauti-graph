@@ -380,6 +380,21 @@ function infoSections(info) {
 }
 
 /**
+ * The elements to hide for the reports unchecked in "Select a node": those reports
+ * (Cytoscape then hides their edges too) and the folders left with no visible report.
+ * @param {cytoscape.Core} cy - Cytoscape instance
+ * @param {Set<string>} hiddenIds - IDs of the reports to hide
+ * @returns {cytoscape.Collection} Elements to hide
+ */
+export function getHiddenElements(cy, hiddenIds) {
+  const reports = cy.nodes(REPORT_NODE).filter((n) => hiddenIds.has(n.id()));
+  const emptyFolders = cy
+    .nodes(':parent')
+    .filter((folder) => folder.children().every((child) => reports.has(child)));
+  return reports.union(emptyFolders);
+}
+
+/**
  * Formats node details as plain text for the clipboard, matching the side panel:
  * the group and the parent/child lists appear only when not empty.
  * @param {ReturnType<typeof getNodeInfo>} info - Output of getNodeInfo
@@ -528,6 +543,11 @@ export function makeStyles({
         style: { 'border-width': 5, 'background-color': lightTint(color) },
       },
     ]),
+    {
+      // Unchecked in "Select a node": not drawn (nor are its edges)
+      selector: '.hidden',
+      style: { display: 'none' },
+    },
   ];
 }
 
@@ -545,8 +565,19 @@ const NO_NODE_LABEL = 'ALL';
  * @param {string} selectedId - Currently selected node id ('' for none)
  * @param {(id: string) => void} onSelect - Called with the chosen node id
  * @param {string} [noneLabel] - Label of the first entry, which selects no node
+ * @param {Set<string>} [hiddenIds] - With onToggleVisible: nodes whose checkbox is off
+ * @param {(id: string) => void} [onToggleVisible] - When given, each node gets a checkbox
+ *   (on = shown); called with the node id when it is clicked
  */
-export function NodeSearch({ id, options, selectedId, onSelect, noneLabel = NO_NODE_LABEL }) {
+export function NodeSearch({
+  id,
+  options,
+  selectedId,
+  onSelect,
+  noneLabel = NO_NODE_LABEL,
+  hiddenIds,
+  onToggleVisible,
+}) {
   const [query, setQuery] = useState(''); // text shown in the box
   const [filter, setFilter] = useState(''); // text typed since the list opened
   const [open, setOpen] = useState(false);
@@ -668,13 +699,30 @@ export function NodeSearch({ id, options, selectedId, onSelect, noneLabel = NO_N
             matches.map((opt, i) => (
               <li
                 key={opt.id || '__none__'}
-                className={i === active ? 'active' : undefined}
+                className={
+                  [i === active && 'active', hiddenIds?.has(opt.id) && 'off'].filter(Boolean).join(' ') ||
+                  undefined
+                }
                 onMouseDown={(e) => {
                   e.preventDefault(); // keep focus in the input
                   choose(opt);
                 }}
                 onMouseEnter={() => setActive(i)}
               >
+                {onToggleVisible && opt.id && (
+                  <input
+                    type="checkbox"
+                    checked={!hiddenIds?.has(opt.id)}
+                    aria-label={`Show ${opt.label}`}
+                    // Toggles the node only: does not pick it, and keeps the list open
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={() => onToggleVisible(opt.id)}
+                  />
+                )}
                 {opt.label}
               </li>
             ))
@@ -747,6 +795,7 @@ export function create_graph(
     const [showGroupInLabel, setShowGroupInLabel] = useState(true);
     const [contextMenu, setContextMenu] = useState(null); // { x, y, copyText }
     const [nodeInfo, setNodeInfo] = useState(null); // details panel for a double-clicked node
+    const [hiddenIds, setHiddenIds] = useState(() => new Set()); // reports unchecked in "Select a node"
 
     // Initialize Cytoscape graph (rebuilt when a toggle changes)
     useEffect(() => {
@@ -828,10 +877,22 @@ export function create_graph(
       navigator.clipboard.writeText(copyText).catch((err) => console.error('Failed to copy:', err));
     };
 
-    // Selects a node (search box or side panel): jumps to it and shows its details
+    // Checkbox next to a report in "Select a node": show or hide it
+    const toggleVisible = (id) => {
+      setHiddenIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      });
+    };
+
+    // Selects a node (search box or side panel): jumps to it and shows its details.
+    // A hidden node is shown again, so there is something to jump to.
     const showNode = (id) => {
       const node = cyRef.current?.getElementById(id);
       if (!node || node.empty()) return;
+      if (hiddenIds.has(id)) toggleVisible(id);
       setSelectedId(id);
       setNodeInfo(getNodeInfo(node));
     };
@@ -843,6 +904,18 @@ export function create_graph(
       setFitRequest((n) => n + 1);
     };
 
+    // Hide the reports unchecked in "Select a node".
+    // Also re-applied when a toggle rebuilds the graph. Runs before the zoom effects
+    // below, so a hidden node picked in the list is shown before zooming to it.
+    useEffect(() => {
+      const cy = cyRef.current;
+      if (!cy) return;
+      cy.batch(() => {
+        cy.elements().removeClass('hidden');
+        getHiddenElements(cy, hiddenIds).addClass('hidden');
+      });
+    }, [hiddenIds, showFolders, showGroupInLabel]);
+
     // Zoom out to the full graph. Runs after the re-render, so the closed
     // details panel has already given its width back to the graph.
     useEffect(() => {
@@ -850,7 +923,7 @@ export function create_graph(
       if (!fitRequest || !cy) return;
       cy.stop(); // cancel a running zoom to a node
       cy.resize();
-      cy.animate({ fit: { eles: cy.elements(), padding: 30 } }, { duration: 400 });
+      cy.animate({ fit: { eles: cy.elements().not('.hidden'), padding: 30 } }, { duration: 400 });
     }, [fitRequest]);
 
     // Highlight the selected node and center on it.
@@ -913,6 +986,9 @@ export function create_graph(
               selectedId={selectedId}
               // Picking a node also opens its details panel, like a double click
               onSelect={(id) => (id ? showNode(id) : showAll())}
+              // Checkbox next to each node: show it in the graph or not
+              hiddenIds={hiddenIds}
+              onToggleVisible={toggleVisible}
             />
           </span>
           <label>

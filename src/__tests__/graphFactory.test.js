@@ -8,6 +8,7 @@ import {
   compareNames,
   formatNodeInfo,
   getNodeInfo,
+  getHiddenElements,
   getNodeSize,
   getTrackedElements,
   lightTint,
@@ -357,6 +358,38 @@ describe('STYLES', () => {
 
   it('sizes report boxes from their data', () => {
     expect(cy.getElementById('a').style('width')).toBe(`${getNodeSize('a').width}px`);
+  });
+});
+
+describe('getHiddenElements (unchecked in Select a node)', () => {
+  const ids = (eles) => eles.map((e) => e.id()).sort();
+
+  it('hides nothing when every report is checked', () => {
+    const cy = makeCy({ A: ['a', 'b'] }, [['a', 'b']]);
+    expect(getHiddenElements(cy, new Set()).length).toBe(0);
+  });
+
+  it('hides the unchecked reports, and Cytoscape then hides their edges', () => {
+    const cy = makeCy({ A: ['a', 'b'] }, [['a', 'b']]);
+    const hidden = getHiddenElements(cy, new Set(['a']));
+    expect(ids(hidden)).toEqual(['a']);
+    hidden.addClass('hidden');
+    expect(cy.getElementById('a').visible()).toBe(false);
+    expect(cy.getElementById('b').visible()).toBe(true);
+    expect(cy.edges()[0].visible()).toBe(false);
+  });
+
+  it('hides a folder once all its reports are unchecked', () => {
+    const cy = makeCy({ A: ['a', 'b'], B: ['c'] }, []);
+    const folderA = cy.nodes(':parent').filter((f) => f.data('label') === 'A').id();
+    expect(ids(getHiddenElements(cy, new Set(['a'])))).toEqual(['a']);
+    expect(ids(getHiddenElements(cy, new Set(['a', 'b'])))).toEqual(['a', 'b', folderA].sort());
+  });
+
+  it('only hides reports, never a folder by its own id', () => {
+    const cy = makeCy({ A: ['a'] }, []);
+    const folderA = cy.nodes(':parent').id();
+    expect(getHiddenElements(cy, new Set([folderA])).length).toBe(0);
   });
 });
 

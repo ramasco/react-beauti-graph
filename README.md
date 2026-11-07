@@ -29,6 +29,7 @@ on a grid and adds search, tracing of parents and children, a details panel and 
 - **Automatic grid layout** built from the folders, or your own layout row by row
 - **Arrows** for connections: `[a, b]` + `[b, a]` become one line with arrows at both ends; `[a, a]` is drawn as a loop
 - **Select a node**: partial, case-insensitive search; jumps to the report and opens its details
+- **Show or hide reports**: a checkbox next to each report in the *Select a node* list
 - **Track node**: highlights the whole chain of parents or children of a report and dims the rest
 - **Details panel** (double click): the report, its group, its parents and children; click a name to jump to it
 - **Save to clipboard** (right click): copies the same information as the details panel
@@ -176,6 +177,19 @@ reports (arrows leaving it). Click a name in the panel to jump to that report.
 
 *`r002` selected. `r001` is both a parent and a child because of the two-way arrow.*
 
+### Show or hide reports
+
+Each report in the *Select a node* list has a checkbox, checked at first. Uncheck it to remove the report
+and its arrows from the graph; check it again to bring them back. A folder whose reports are all unchecked
+disappears too. Hidden reports stay in the list, greyed out.
+
+Clicking a checkbox does not select the report and keeps the list open, so you can hide several in a row.
+Picking a hidden report by name shows it again, and *ALL* zooms to fit the reports that are shown.
+
+![The Select a node list with r001 unchecked and greyed out: the graph shows only r002 with its arrow to r003; r001 and the two-way arrow are gone](https://raw.githubusercontent.com/ramasco/react-beauti-graph/main/docs/example_filter_out_node.jpg)
+
+*`r001` unchecked, with* Show Groups *and* Add Group to Node Name *turned off: only `r002 → r003` is left.*
+
 ### Track node
 
 Pick a report in *Track node* to follow its whole chain, not just its direct neighbours: with *Parents*,
@@ -194,6 +208,7 @@ filled, and everything else is dimmed.
 | Control | What it does |
 |---|---|
 | *Select a node* | Type part of a name, pick a report: the graph zooms to it and opens its details. *ALL* closes the details and shows the whole graph. |
+| Checkbox next to a report in the *Select a node* list | Shows or hides the report and its arrows; see [Show or hide reports](#show-or-hide-reports). |
 | *Show Groups* | Shows or hides the folder boxes. |
 | *Add Group to Node Name* | Writes the folder after each report name, e.g. `r001 (Sales)`. |
 | *Track node* | Pick a report to highlight its whole chain (parents of parents, … or children of children, …) and dim the rest. *No tracking* turns it off. |
@@ -231,7 +246,7 @@ Building blocks used by the component, for building your own UI:
 
 | Export | Description |
 |---|---|
-| `NodeSearch` | The search box: `<NodeSearch options={[{ id, label }]} selectedId={id} onSelect={(id) => …} noneLabel="ALL" />`. `''` means no node. |
+| `NodeSearch` | The search box: `<NodeSearch options={[{ id, label }]} selectedId={id} onSelect={(id) => …} noneLabel="ALL" />`. `''` means no node. Add `onToggleVisible={(id) => …}` and `hiddenIds={new Set([...])}` to show a checkbox next to each node. |
 | `getNodeInfo(node)` | For a Cytoscape node: `{ id, name, group, parents, children }` (parents and children sorted by name). |
 | `formatNodeInfo(info)` | The clipboard text for the result of `getNodeInfo`. |
 

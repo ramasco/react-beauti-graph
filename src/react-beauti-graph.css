@@ -144,7 +144,7 @@
   cursor: not-allowed;
 }
 
-.rbg-graph .node-search input {
+.rbg-graph .node-search > input {
   padding: 0.4em 2em 0.4em 0.7em;
   font-size: var(--rbg-top-controls-font-size, 14px);
   min-width: 18.5em;
@@ -154,7 +154,7 @@
   border-radius: 4px;
 }
 
-.rbg-graph .node-search input::placeholder {
+.rbg-graph .node-search > input::placeholder {
   color: #0066cc;
   font-weight: normal;
   opacity: 0.7;
@@ -199,6 +199,18 @@
 
 .rbg-graph .node-search-list li.active {
   background: #e8f0fb;
+}
+
+/* Visibility checkbox in "Select a node" */
+.rbg-graph .node-search-list li input[type='checkbox'] {
+  margin: 0 0.5em 0 0;
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+/* Node hidden from the graph */
+.rbg-graph .node-search-list li.off {
+  opacity: 0.5;
 }
 
 .rbg-graph .node-search-list li.node-search-empty {
