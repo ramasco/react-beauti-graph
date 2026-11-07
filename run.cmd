@@ -1,8 +1,8 @@
 @echo off
-rem Starts the demo app (Vite) and opens it in the browser.
-cd /d "%~dp0"
+rem Starts the example app (examples/, separate from the library) and opens it in the browser.
+cd /d "%~dp0examples"
 if not exist node_modules (
-  echo Installing dependencies...
+  echo Installing the example's dependencies...
   call npm install || exit /b 1
 )
 start "" http://localhost:5173

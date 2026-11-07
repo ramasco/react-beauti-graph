@@ -650,9 +650,6 @@ export function makeStyles({
   ];
 }
 
-/** Default Cytoscape stylesheet (default track colors) */
-export const STYLES = makeStyles();
-
 // Default label of the first entry of the node search list (selects no node)
 const NO_NODE_LABEL = 'ALL';
 

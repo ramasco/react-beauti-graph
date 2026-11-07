@@ -306,21 +306,34 @@ Building blocks used by the component, for building your own UI:
 
 ## Development
 
-```bash
-npm install
-npm run dev        # demo app (Vite) at http://localhost:5173
-npm run build      # build the demo app into dist-demo/
-npm test           # unit tests (Vitest)
-npm run build:lib  # build the npm package into dist/
-```
-
-The project is split in three parts:
+The library and the example app are two separate projects, each with its own `package.json`:
 
 | Folder | Contents |
 |---|---|
 | `src/` | **Source code of the library** (this is what gets published) |
 | `tests/` | **Unit tests** (Vitest) |
-| `examples/` | **Demo / example app**: a page that uses the library, not part of the package |
+| `examples/` | **Example app**, its own project: it only imports the package `react-beauti-graph`, as any user would |
+
+**Library** (project root):
+
+```bash
+npm install
+npm test           # unit tests (Vitest)
+npm run build:lib  # build the npm package into dist/
+```
+
+**Example app** (`examples/`):
+
+```bash
+cd examples
+npm install
+npm run dev        # example app (Vite) at http://localhost:5173
+npm run build      # build the example app into examples/dist/
+```
+
+On Windows, `run.cmd` installs the example's dependencies the first time and starts it. From the root,
+`npm run dev` does the same as `cd examples && npm run dev`. While developing, the name `react-beauti-graph`
+points at the library source in `src/` (see `examples/vite.config.mjs`), so library changes show up at once.
 
 | Path | Contents |
 |---|---|
@@ -329,12 +342,13 @@ The project is split in three parts:
 | `src/react-beauti-graph.css` | The library styles (published as `style.css`) |
 | `src/index.js`, `src/index.d.ts` | Public entry point of the package and its TypeScript types |
 | `tests/` | `graphFactory.test.js`, `NodeSearch.test.jsx` |
-| `examples/DemoApp.jsx` | The demo page, with the *Demo data* dropdown |
-| `examples/main.jsx`, `examples/index.html`, `examples/index.css` | The Vite entry that mounts the demo page, and its page styles |
-| `examples/samples/` | Demo data: a small example and 100 reports in 5 groups |
-| `vite.config.mjs`, `vite.lib.config.mjs`, `vitest.config.mjs` | Build of the demo app, build of the npm package, and the test setup |
+| `vite.lib.config.mjs`, `vitest.config.mjs` | Build of the npm package, and the test setup |
+| `examples/DemoApp.jsx` | The example page, with the *Demo data* dropdown |
+| `examples/main.jsx`, `examples/index.html`, `examples/index.css` | The Vite entry that mounts the example page, and its page styles |
+| `examples/samples/` | Example data: a small example and 100 reports in 5 groups |
+| `examples/package.json`, `examples/vite.config.mjs` | The example app's own dependencies and Vite setup |
 
-In the demo, switch between the two samples with the *Demo data* dropdown at the top of the page.
+In the example app, switch between the two samples with the *Demo data* dropdown at the top of the page.
 
 ## License and credits
 

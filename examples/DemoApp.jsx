@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { create_graph } from '../src/graphFactory';
+import { create_graph } from 'react-beauti-graph';
 import * as small from './samples/sampleSmallGraphData';
 import * as big from './samples/sampleBigGraphData';
 

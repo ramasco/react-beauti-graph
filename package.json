@@ -41,9 +41,9 @@
     "*.css"
   ],
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "start": "vite preview",
+    "dev": "npm --prefix examples run dev",
+    "build": "npm --prefix examples run build",
+    "start": "npm --prefix examples run start",
     "test": "vitest run",
     "test:watch": "vitest",
     "build:lib": "vite build -c vite.lib.config.mjs",

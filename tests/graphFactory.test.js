@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import cytoscape from 'cytoscape';
 import {
   REPORT_NODE,
-  STYLES,
   applyLayout,
   buildGraph,
   compareNames,
@@ -24,7 +23,7 @@ import {
 /** Headless Cytoscape instance built the same way the component builds it */
 function makeCy(node_groups, direct_node_connections, extraIds = [], { showFolders = true, showGroupInLabel = true } = {}) {
   const elements = getVisibleElements(buildGraph(node_groups, direct_node_connections, extraIds), showFolders, showGroupInLabel);
-  return cytoscape({ headless: true, styleEnabled: true, elements, style: STYLES });
+  return cytoscape({ headless: true, styleEnabled: true, elements, style: makeStyles() });
 }
 
 const nodesOf = (elements) => elements.filter((e) => !e.data.source);
@@ -356,7 +355,7 @@ describe('layoutFromFolders (no layout given)', () => {
   });
 });
 
-describe('STYLES', () => {
+describe('makeStyles (default stylesheet)', () => {
   const cy = makeCy({}, [['a', 'b'], ['b', 'a'], ['a', 'c'], ['d', 'd']]);
   const edge = (s, t) => cy.edges().filter((e) => e.source().id() === s && e.target().id() === t);
 
