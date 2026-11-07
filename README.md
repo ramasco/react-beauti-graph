@@ -18,6 +18,10 @@ on a grid and adds search, tracing of parents and children, a details panel and 
 - [Your data](#your-data)
 - [Options](#options)
 - [Using the graph](#using-the-graph)
+  - [Select a node and the details panel](#select-a-node-and-the-details-panel)
+  - [Filter out nodes](#filter-out-nodes)
+  - [Track node](#track-node)
+  - [All controls](#all-controls)
 - [Styling](#styling)
 - [Other exports](#other-exports)
 - [Development](#development)
@@ -29,7 +33,7 @@ on a grid and adds search, tracing of parents and children, a details panel and 
 - **Automatic grid layout** built from the folders, or your own layout row by row
 - **Arrows** for connections: `[a, b]` + `[b, a]` become one line with arrows at both ends; `[a, a]` is drawn as a loop
 - **Select a node**: partial, case-insensitive search; jumps to the report and opens its details
-- **Show or hide reports**: a checkbox next to each report in the *Select a node* list
+- **Filter out nodes**: a checkbox next to each report in the *Select a node* list shows or hides it
 - **Track node**: highlights the whole chain of parents or children of a report and dims the rest
 - **Details panel** (double click): the report, its group, its parents and children; click a name to jump to it
 - **Save to clipboard** (right click): copies the same information as the details panel
@@ -177,7 +181,7 @@ reports (arrows leaving it). Click a name in the panel to jump to that report.
 
 *`r002` selected. `r001` is both a parent and a child because of the two-way arrow.*
 
-### Show or hide reports
+### Filter out nodes
 
 Each report in the *Select a node* list has a checkbox, checked at first. Uncheck it to remove the report
 and its arrows from the graph; check it again to bring them back. A folder whose reports are all unchecked
@@ -208,7 +212,7 @@ filled, and everything else is dimmed.
 | Control | What it does |
 |---|---|
 | *Select a node* | Type part of a name, pick a report: the graph zooms to it and opens its details. *ALL* closes the details and shows the whole graph. |
-| Checkbox next to a report in the *Select a node* list | Shows or hides the report and its arrows; see [Show or hide reports](#show-or-hide-reports). |
+| Checkbox next to a report in the *Select a node* list | Shows or hides the report and its arrows; see [Filter out nodes](#filter-out-nodes). |
 | *Show Groups* | Shows or hides the folder boxes. |
 | *Add Group to Node Name* | Writes the folder after each report name, e.g. `r001 (Sales)`. |
 | *Track node* | Pick a report to highlight its whole chain (parents of parents, … or children of children, …) and dim the rest. *No tracking* turns it off. |
