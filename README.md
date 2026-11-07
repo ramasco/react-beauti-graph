@@ -13,6 +13,7 @@ _The [quick start](#quick-start) example, with the_ Node to Display _list open._
 ## Contents
 
 - [Features](#features)
+- [Release notes](#release-notes)
 - [Install](#install)
 - [Quick start](#quick-start)
   - [Frameworks](#frameworks)
@@ -41,6 +42,23 @@ _The [quick start](#quick-start) example, with the_ Node to Display _list open._
 - **Save to clipboard** (right click): copies the same information as the details panel
 - **Text size buttons** (− / +) for the top row, the details panel and the graph
 - **Configurable** colors, text sizes and grid spacing
+
+## Release notes
+
+### 1.3.0
+
+- **Report boxes fit their text**: each box is as big as its label plus a little padding (it was a fixed 200 × 60); the _Font Graph Panel_ − / + buttons resize the boxes with the text
+- Built and type-checked with TypeScript 7; dependencies updated
+
+### 1.2.0
+
+- **Show Dependency 1 and 2**: two independent chains of parents or children, each with its own colors; reports and arrows on both use `commonColor`
+- **Details panel**: _One level / All levels_ switch, also used by _Save to clipboard_
+- **Text size**: dropdown with − / + buttons for the top row, the details panel and the graph
+- **Renamed controls**: _Node to Display_, _Show Dependency_, _Show Nothing_
+- **`node_groups`** is the name of the first `create_graph` argument (it was `folders`; the argument is positional, so existing calls keep working)
+- **TypeScript**: written in strict TypeScript, with generated type definitions for ESM and CommonJS
+- **Example app**: now a separate project in `examples/` (Vite); Next.js is no longer used
 
 ## Install
 
