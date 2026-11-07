@@ -39,7 +39,7 @@ on a grid and adds search, tracing of parents and children, a details panel and 
 From the [GitHub release](https://github.com/ramasco/react-beauti-graph/releases/latest):
 
 ```bash
-npm install https://github.com/ramasco/react-beauti-graph/releases/download/v1.0.0/react-beauti-graph-1.0.0.tgz
+npm install https://github.com/ramasco/react-beauti-graph/releases/download/v1.1.0/react-beauti-graph-1.1.0.tgz
 ```
 
 Requires React 18 or newer. Cytoscape is installed automatically.
