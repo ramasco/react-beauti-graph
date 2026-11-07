@@ -21,6 +21,7 @@ on a grid and adds search, tracing of parents and children, a details panel and 
   - [Select a node and the details panel](#select-a-node-and-the-details-panel)
   - [Filter out nodes](#filter-out-nodes)
   - [Track node](#track-node)
+  - [Text size](#text-size)
   - [All controls](#all-controls)
 - [Styling](#styling)
 - [Other exports](#other-exports)
@@ -37,6 +38,7 @@ on a grid and adds search, tracing of parents and children, a details panel and 
 - **Track node**: highlights the whole chain of parents or children of a report and dims the rest
 - **Details panel** (double click): the report, its group, its parents and children; click a name to jump to it
 - **Save to clipboard** (right click): copies the same information as the details panel
+- **Text size buttons** (− / +) for the top row, the details panel and the graph
 - **Configurable** colors, text sizes and grid spacing
 
 ## Install
@@ -205,6 +207,26 @@ filled, and everything else is dimmed.
 
 *Parents of `r002`, with* Show Groups *and* Add Group to Node Name *turned off.*
 
+### Text size
+
+The dropdown and the **−** / **+** buttons at the end of the top row change the text size while you look
+at the graph. Pick what to resize in the dropdown, then click **−** or **+**:
+
+| Dropdown | What changes |
+|---|---|
+| *Font Top Panel* (first choice) | The top row: labels, search boxes, switches and buttons |
+| *Font Right Panel* | The details panel (open it by double clicking a report) |
+| *Font Graph Panel* | The text in the graph: report names and folder names. The report boxes grow or shrink with the text |
+
+- Each click changes the size by 2px, from 8px smaller to 16px larger than the starting size. The button
+  is greyed out at the limit.
+- Each area keeps its own size when you switch the dropdown to another one.
+- The starting sizes of the top row and the details panel are the `topControlsFontSize` and
+  `rightDisplayFontSize` [options](#options) (`22px` and `18px`). The graph text starts at 16px for reports and
+  14px for folders and has no option.
+- Sizes are not saved: they go back to the starting size when the page is reloaded.
+- With a large graph text, reports can touch each other; increase `offsetX` and `offsetY` to give them more room.
+
 ### All controls
 
 **Top row**
@@ -217,6 +239,8 @@ filled, and everything else is dimmed.
 | *Add Group to Node Name* | Writes the folder after each report name, e.g. `r001 (Sales)`. |
 | *Track node* | Pick a report to highlight its whole chain (parents of parents, … or children of children, …) and dim the rest. *No tracking* turns it off. |
 | *Parents / Children* | Which chain *Track node* follows. Disabled while nothing is tracked. |
+| *Font Top Panel / Font Right Panel / Font Graph Panel* | Dropdown that picks which text the next two buttons resize: the top row, the details panel, or the labels and boxes of the graph. |
+| *−* and *+* | Make the chosen text 2px smaller or larger (from 8px smaller to 16px larger than the configured size). Each area keeps its own size; they reset when the page is reloaded. |
 | *?* | Short help. |
 
 In both search boxes, use the arrow keys and Enter to pick, Escape to close the list, and × to clear.
@@ -242,7 +266,9 @@ in your own CSS, for example:
 .rbg-graph .controls { background: #fff; }
 ```
 
-Colors and text sizes are easier to change with the [options](#options).
+Colors and text sizes are easier to change with the [options](#options). Users can also change the text
+sizes while viewing, with the dropdown and the *−* / *+* buttons in the top row (see
+[All controls](#all-controls)); `topControlsFontSize` and `rightDisplayFontSize` set the starting size.
 
 ## Other exports
 
