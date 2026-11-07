@@ -312,7 +312,8 @@ Building blocks used by the component, for building your own UI:
 ## Development
 
 The library is written in TypeScript (strict mode); its type definitions are generated from the source when
-you build the package. The library and the example app are two separate projects, each with its own `package.json`:
+you build the package. Code is type-checked and compiled with TypeScript 7 (the `typescript7` package); `typescript` 6 stays
+installed only because `typescript-eslint` does not support version 7 yet. The library and the example app are two separate projects, each with its own `package.json`:
 
 | Folder      | Contents                                                                                              |
 | ----------- | ----------------------------------------------------------------------------------------------------- |
@@ -325,7 +326,7 @@ you build the package. The library and the example app are two separate projects
 ```bash
 npm install
 npm test           # unit tests (Vitest)
-npm run typecheck  # TypeScript, strict (library, tests and example app)
+npm run typecheck  # TypeScript 7, strict (library, tests and example app)
 npm run lint       # ESLint, strict rules (eslint.config.mjs)
 npm run format     # Prettier: formats the code (npm run format:check only checks)
 npm run check      # typecheck + lint + format check + tests: run it before a commit
