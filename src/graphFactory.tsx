@@ -44,11 +44,14 @@ const FONT_AREAS: readonly (readonly [FontArea, string])[] = [
   ['right', 'Font Right Panel'],
   ['graph', 'Font Graph Panel'],
 ];
-// Report box size: wide enough for its label
-const NODE_MIN_WIDTH = 200;
-const NODE_HEIGHT = 60;
-const CHAR_WIDTH = 9;
-const PADDING_X = 20;
+
+// Report box: as big as its label plus this much space (px) around the text on every side
+const REPORT_PADDING = 4;
+const LABEL_FONT_FAMILY = 'Helvetica Neue, Helvetica, Arial, sans-serif';
+// Height of one line of text, as a share of the font size
+const LINE_HEIGHT = 1.2;
+// Width of one character as a share of the font size, for when the text cannot be measured
+const FALLBACK_CHAR_WIDTH = 0.6;
 
 // Element types, stored in data.class (not a Cytoscape class)
 const REPORT_CLASS = 'macromolecule';
@@ -75,8 +78,6 @@ export interface ElementData {
   source?: string;
   target?: string;
   graphLabel?: string | undefined;
-  nodeWidth?: number;
-  nodeHeight?: number;
 }
 
 /** A Cytoscape element as built by buildGraph */
@@ -107,16 +108,43 @@ export interface NodeInfo extends NodeRef {
   children: NodeRef[];
 }
 
+let measureContext: CanvasRenderingContext2D | null | undefined;
+
 /**
- * Calculate rectangle dimensions based on text length.
- * @param {string} label - The node label text
- * @returns {{width: number, height: number}} Computed dimensions
+ * Width in px of a text drawn with the label font, measured on a canvas.
+ * Without a canvas (tests, server) it is estimated from the number of characters.
+ * @param {string} text - The label
+ * @param {number} fontSize - Font size in px
+ * @returns {number} Width in px
  */
-export function getNodeSize(label: string | undefined): { width: number; height: number } {
-  const text = label ?? '';
+function measureText(text: string, fontSize: number): number {
+  if (measureContext === undefined) {
+    try {
+      measureContext = document.createElement('canvas').getContext('2d');
+    } catch {
+      measureContext = null;
+    }
+  }
+  if (!measureContext) {
+    return text.length * fontSize * FALLBACK_CHAR_WIDTH;
+  }
+  measureContext.font = `${fontSize}px ${LABEL_FONT_FAMILY}`;
+  return measureContext.measureText(text).width;
+}
+
+/**
+ * Size of a report box: exactly the label plus a little padding.
+ * @param {string|undefined} label - The node label text
+ * @param {number} [fontSize] - Font size of the label in px
+ * @returns {{width: number, height: number}} Box size in px
+ */
+export function getNodeSize(
+  label: string | undefined,
+  fontSize: number = REPORT_FONT_SIZE
+): { width: number; height: number } {
   return {
-    width: Math.max(NODE_MIN_WIDTH, text.length * CHAR_WIDTH + PADDING_X * 2),
-    height: NODE_HEIGHT,
+    width: Math.ceil(measureText(label ?? '', fontSize)) + REPORT_PADDING * 2,
+    height: Math.ceil(fontSize * LINE_HEIGHT) + REPORT_PADDING * 2,
   };
 }
 
@@ -381,11 +409,7 @@ export function getVisibleElements(
         return { ...elem, data: { ...elem.data } };
       }
       const graphLabel = showGroupInLabel ? elem.data.displayLabel : elem.data.rawLabel;
-      const { width, height } = getNodeSize(graphLabel);
-      return {
-        ...elem,
-        data: { ...elem.data, graphLabel, nodeWidth: width, nodeHeight: height },
-      };
+      return { ...elem, data: { ...elem.data, graphLabel } };
     });
 }
 
@@ -673,20 +697,14 @@ export function makeStyles({
         'background-color': REPORT_BACKGROUND_COLOR,
         label: 'data(graphLabel)',
         shape: 'rectangle',
+        // The box size comes from the label (set in the graph text effect); groups size to their children
+        'font-family': LABEL_FONT_FAMILY,
         'font-size': REPORT_FONT_SIZE,
         color: GRAPH_COLOR,
         'border-width': 2,
         'border-color': GRAPH_COLOR,
         'text-valign': 'center',
         'text-halign': 'center',
-      },
-    },
-    {
-      // Only report nodes carry size data; groups size to their children
-      selector: 'node[nodeWidth][nodeHeight]',
-      style: {
-        width: 'data(nodeWidth)',
-        height: 'data(nodeHeight)',
       },
     },
     {
@@ -1169,7 +1187,7 @@ export function create_graph(
       };
     }, [showFolders, showGroupInLabel]);
 
-    // Graph text: the + / - buttons grow or shrink the labels, and the boxes with them.
+    // Graph text size, and every report box sized to its label (so the + / - buttons resize both).
     // Declared after the effect above, so it also runs when that one rebuilds the graph.
     useEffect(() => {
       const cy = cyRef.current;
@@ -1177,14 +1195,11 @@ export function create_graph(
         return;
       }
       const delta = fontDeltas.graph;
-      const scale = (REPORT_FONT_SIZE + delta) / REPORT_FONT_SIZE;
       cy.batch(() => {
         cy.nodes(REPORT_NODE).forEach((n) => {
-          n.style({
-            'font-size': REPORT_FONT_SIZE + delta,
-            width: n.data('nodeWidth') * scale,
-            height: n.data('nodeHeight') * scale,
-          });
+          const fontSize = REPORT_FONT_SIZE + delta;
+          const { width, height } = getNodeSize(n.data('graphLabel') as string | undefined, fontSize);
+          n.style({ 'font-size': fontSize, width, height });
         });
         cy.nodes(':parent').style('font-size', FOLDER_FONT_SIZE + delta);
       });

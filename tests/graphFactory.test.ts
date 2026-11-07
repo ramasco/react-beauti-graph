@@ -7,10 +7,10 @@ import {
   applyLayout,
   buildGraph,
   compareNames,
+  getNodeSize,
   formatNodeInfo,
   getNodeInfo,
   getHiddenElements,
-  getNodeSize,
   getTrackedElements,
   lightTint,
   makeStyles,
@@ -63,17 +63,21 @@ const styleOf = (styles: StylesheetJson, selector: string): Record<string, unkno
 };
 
 describe('getNodeSize', () => {
-  it('uses the minimum width for short labels', () => {
-    expect(getNodeSize('a')).toEqual({ width: 200, height: 60 });
+  // jsdom has no canvas, so the text width is estimated from the number of characters
+  it('is as wide as the label plus the padding, and grows with it', () => {
+    const short = getNodeSize('ab');
+    const long = getNodeSize('ab'.repeat(10));
+    expect(long.width).toBeGreaterThan(short.width);
+    expect(long.height).toBe(short.height);
   });
 
-  it('grows with long labels', () => {
-    const label = 'x'.repeat(40);
-    expect(getNodeSize(label).width).toBe(40 * 9 + 20 * 2);
+  it('grows with the font size', () => {
+    expect(getNodeSize('r001', 20).width).toBeGreaterThan(getNodeSize('r001', 10).width);
+    expect(getNodeSize('r001', 20).height).toBeGreaterThan(getNodeSize('r001', 10).height);
   });
 
-  it('handles missing labels', () => {
-    expect(getNodeSize(undefined)).toEqual({ width: 200, height: 60 });
+  it('keeps only the padding for a missing label', () => {
+    expect(getNodeSize(undefined)).toEqual({ width: 8, height: 8 + Math.ceil(16 * 1.2) });
   });
 });
 
@@ -246,11 +250,6 @@ describe('getVisibleElements', () => {
 
   it('labels reports with the name only otherwise', () => {
     expect(byId(getVisibleElements(all, true, false), 'r1').data.graphLabel).toBe('r1');
-  });
-
-  it('sizes report boxes to their label', () => {
-    const r1 = byId(getVisibleElements(all, true, true), 'r1').data;
-    expect({ width: r1.nodeWidth, height: r1.nodeHeight }).toEqual(getNodeSize('r1 (Sales)'));
   });
 
   it('returns copies, leaving the original elements untouched', () => {
@@ -461,10 +460,6 @@ describe('makeStyles (default stylesheet)', () => {
     const loop = edge('d', 'd');
     expect(loop.style('loop-direction')).toBe('0deg');
     expect(loop.style('control-point-step-size')).toBe('70px');
-  });
-
-  it('sizes report boxes from their data', () => {
-    expect(cy.getElementById('a').style('width')).toBe(`${getNodeSize('a').width}px`);
   });
 });
 
