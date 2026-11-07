@@ -10,27 +10,35 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import cytoscape from 'cytoscape';
 
+// ---- Defaults, each one overridable with the create_graph option named in its comment ----
+
+// Color of the node picked in "Select a node" (options.selectedColor)
+export const DEFAULT_SELECTED_COLOR = '#e91e63';
+// "Track node" chain colors (options.parentsColor, options.childrenColor)
+export const DEFAULT_PARENTS_COLOR = '#2e7d32';
+export const DEFAULT_CHILDREN_COLOR = '#7b1fa2';
+// Reports per row when the layout is built from the folders (options.layoutColumns)
+export const DEFAULT_LAYOUT_COLUMNS = 10;
+// Text size of the top controls row: "Select a node", "Track node", ... (options.topControlsFontSize)
+export const DEFAULT_TOP_CONTROLS_FONT_SIZE = '22px';
+// Text size of the right details panel (options.rightDisplayFontSize)
+export const DEFAULT_RIGHT_DISPLAY_FONT_SIZE = '18px';
+
+// ---- Fixed look ----
+
 // Base color of the graph: node text, node borders, edges and arrows (blue)
 const GRAPH_COLOR = '#0066cc';
-// Default color of the node picked in "Select a node"; override with options.selectedColor
-export const DEFAULT_SELECTED_COLOR = '#e91e63'; 
-
-// Default "Track node" chain colors; override with options.parentsColor / options.childrenColor
-export const DEFAULT_PARENTS_COLOR = '#2e7d32'; 
-export const DEFAULT_CHILDREN_COLOR = '#7b1fa2';
-// Reports per row when the layout is built from the folders; override with options.layoutColumns
-export const DEFAULT_LAYOUT_COLUMNS = 10;
-// Default text size of the top controls row ("Select a node", "Track node", ...); override with options.topControlsFontSize
-export const DEFAULT_TOP_CONTROLS_FONT_SIZE = '22px';
-// Default text size of the right details panel (double click on a node); override with options.rightDisplayFontSize
-export const DEFAULT_RIGHT_DISPLAY_FONT_SIZE = '18px';
+// Report box size: wide enough for its label
 const NODE_MIN_WIDTH = 200;
 const NODE_HEIGHT = 60;
 const CHAR_WIDTH = 9;
 const PADDING_X = 20;
 
-// Report nodes are marked by data.class (not a Cytoscape class), so select them by data
-export const REPORT_NODE = 'node[class = "macromolecule"]';
+// Element types, stored in data.class (not a Cytoscape class)
+const REPORT_CLASS = 'macromolecule';
+const FOLDER_CLASS = 'compartment';
+// Selector for report nodes (selects by data, see above)
+export const REPORT_NODE = `node[class = "${REPORT_CLASS}"]`;
 
 /**
  * Calculate rectangle dimensions based on text length.
@@ -156,9 +164,9 @@ export function uniqueId(base, taken) {
  */
 export function layoutFromFolders(elements, columns = DEFAULT_LAYOUT_COLUMNS) {
   const perRow = Math.max(1, Math.floor(columns) || 1);
-  const reports = elements.filter((e) => e.data.class === 'macromolecule');
+  const reports = elements.filter((e) => e.data.class === REPORT_CLASS);
   const groups = elements
-    .filter((e) => e.data.class === 'compartment')
+    .filter((e) => e.data.class === FOLDER_CLASS)
     .map((folder) => reports.filter((r) => r.data.parent === folder.data.id));
   groups.push(reports.filter((r) => !r.data.parent));
 
@@ -173,8 +181,8 @@ export function layoutFromFolders(elements, columns = DEFAULT_LAYOUT_COLUMNS) {
 
 /**
  * Builds the Cytoscape elements from folders, edges and extra node IDs.
- * Folders become compound nodes ("compartment"); every report becomes a
- * "macromolecule" node. A report listed in several folders gets one copy per
+ * Folders become compound nodes (FOLDER_CLASS); every report becomes a
+ * REPORT_CLASS node. A report listed in several folders gets one copy per
  * folder ("id", "id(1)", ...); edges connect to the first copy.
  * @param {Object<string, string[]>} folders - Mapping of folder names to child IDs
  * @param {Array<[string, string]>} direct_node_connections - Array of [source, target] edge pairs
@@ -205,7 +213,7 @@ export function buildGraph(folders = {}, direct_node_connections = [], extraIds 
   for (const [folderLabel, children] of Object.entries(folders)) {
     const folderId = uniqueId(makeFolderId(folderLabel), takenIds);
     folderIdByLabel.set(folderLabel, folderId);
-    elements.push({ data: { id: folderId, class: 'compartment', label: folderLabel } });
+    elements.push({ data: { id: folderId, class: FOLDER_CLASS, label: folderLabel } });
 
     for (const childId of children) {
       const existing = instances.get(childId) ?? [];
@@ -234,7 +242,7 @@ export function buildGraph(folders = {}, direct_node_connections = [], extraIds 
   for (const { actualId, originalId, folderLabel } of reports) {
     const data = {
       id: actualId,
-      class: 'macromolecule',
+      class: REPORT_CLASS,
       rawLabel: originalId, // report name
       displayLabel: folderLabel ? `${originalId} (${folderLabel})` : originalId,
       group: folderLabel,
@@ -280,10 +288,10 @@ export function buildGraph(folders = {}, direct_node_connections = [], extraIds 
  */
 export function getVisibleElements(allElements, showFolders, showGroupInLabel) {
   return allElements
-    .filter((elem) => showFolders || elem.data.class !== 'compartment')
+    .filter((elem) => showFolders || elem.data.class !== FOLDER_CLASS)
     .map((elem) => {
       // Fresh copies each time, so one Cytoscape instance never shares objects with the next
-      if (elem.data.class !== 'macromolecule') return { ...elem, data: { ...elem.data } };
+      if (elem.data.class !== REPORT_CLASS) return { ...elem, data: { ...elem.data } };
       const graphLabel = showGroupInLabel ? elem.data.displayLabel : elem.data.rawLabel;
       const { width, height } = getNodeSize(graphLabel);
       return {
@@ -359,6 +367,19 @@ export function getTrackedElements(start, direction) {
 }
 
 /**
+ * The parent/child lists shown in the side panel and copied to the clipboard;
+ * empty lists are left out.
+ * @param {ReturnType<typeof getNodeInfo>} info - Output of getNodeInfo
+ * @returns {Array<[string, Object[]]>} [title, list] pairs
+ */
+function infoSections(info) {
+  return [
+    ['Parent Nodes', info.parents],
+    ['Child Nodes', info.children],
+  ].filter(([, list]) => list.length > 0);
+}
+
+/**
  * Formats node details as plain text for the clipboard, matching the side panel:
  * the group and the parent/child lists appear only when not empty.
  * @param {ReturnType<typeof getNodeInfo>} info - Output of getNodeInfo
@@ -368,11 +389,7 @@ export function formatNodeInfo(info) {
   const describe = (item) => (item.group ? `${item.name} (${item.group})` : item.name);
   const lines = [`Node: ${info.name}`];
   if (info.group) lines.push(`Group: ${info.group}`);
-  for (const [title, list] of [
-    ['Parent Nodes', info.parents],
-    ['Child Nodes', info.children],
-  ]) {
-    if (list.length === 0) continue;
+  for (const [title, list] of infoSections(info)) {
     lines.push('', `${title} (${list.length}):`, ...list.map(describe));
   }
   return lines.join('\n');
@@ -412,105 +429,105 @@ export function makeStyles({
   childrenColor = DEFAULT_CHILDREN_COLOR,
 } = {}) {
   return [
-  {
-    selector: 'node',
-    style: {
-      'background-color': '#fff',
-      label: 'data(graphLabel)',
-      shape: 'rectangle',
-      color: GRAPH_COLOR,
-      'border-width': 2,
-      'border-color': GRAPH_COLOR,
-      'text-valign': 'center',
-      'text-halign': 'center',
-    },
-  },
-  {
-    // Only report nodes carry size data; folders size to their children
-    selector: 'node[nodeWidth][nodeHeight]',
-    style: {
-      width: 'data(nodeWidth)',
-      height: 'data(nodeHeight)',
-    },
-  },
-  {
-    selector: 'node:parent',
-    style: {
-      'background-color': '#f0f8ff',
-      'background-opacity': 0.5,
-      'border-style': 'dashed',
-      label: 'data(label)',
-      'text-valign': 'top',
-      'font-size': 14,
-      'font-weight': 'bold',
-      padding: '18px',
-    },
-  },
-  {
-    selector: '.selected',
-    style: {
-      'overlay-color': selectedColor,
-      'overlay-opacity': 0.35,
-      'overlay-padding': 8,
-    },
-  },
-  {
-    selector: 'edge',
-    style: {
-      'line-color': GRAPH_COLOR,
-      width: 2,
-      'curve-style': 'bezier',
-      'target-arrow-shape': 'vee',
-      'target-arrow-color': GRAPH_COLOR,
-      'target-arrow-fill': 'filled',
-      'arrow-scale': 2,
-    },
-  },
-  {
-    // Self connections ([a, a]): draw the loop above the box, large enough
-    // to stick out of it (the default loop is hidden inside wide nodes)
-    selector: 'edge:loop',
-    style: {
-      'loop-direction': '0deg',
-      'loop-sweep': '-50deg',
-      'control-point-step-size': 70,
-    },
-  },
-  {
-    selector: 'edge.bidirectional',
-    style: {
-      'source-arrow-shape': 'vee',
-      'source-arrow-color': GRAPH_COLOR,
-      'source-arrow-fill': 'filled',
-    },
-  },
-  {
-    // Track node: everything off the traced chain is dimmed
-    selector: '.faded',
-    style: { opacity: 0.15 },
-  },
-  ...[
-    ['track-parents', parentsColor],
-    ['track-children', childrenColor],
-  ].flatMap(([cls, color]) => [
     {
-      selector: `edge.${cls}`,
+      selector: 'node',
       style: {
-        'line-color': color,
-        'target-arrow-color': color,
-        'source-arrow-color': color,
-        width: 4,
+        'background-color': '#fff',
+        label: 'data(graphLabel)',
+        shape: 'rectangle',
+        color: GRAPH_COLOR,
+        'border-width': 2,
+        'border-color': GRAPH_COLOR,
+        'text-valign': 'center',
+        'text-halign': 'center',
       },
     },
     {
-      selector: `node.${cls}`,
-      style: { 'border-color': color, 'border-width': 3 },
+      // Only report nodes carry size data; folders size to their children
+      selector: 'node[nodeWidth][nodeHeight]',
+      style: {
+        width: 'data(nodeWidth)',
+        height: 'data(nodeHeight)',
+      },
     },
     {
-      selector: `node.${cls}.track-root`,
-      style: { 'border-width': 5, 'background-color': lightTint(color) },
+      selector: 'node:parent',
+      style: {
+        'background-color': '#f0f8ff',
+        'background-opacity': 0.5,
+        'border-style': 'dashed',
+        label: 'data(label)',
+        'text-valign': 'top',
+        'font-size': 14,
+        'font-weight': 'bold',
+        padding: '18px',
+      },
     },
-  ]),
+    {
+      selector: '.selected',
+      style: {
+        'overlay-color': selectedColor,
+        'overlay-opacity': 0.35,
+        'overlay-padding': 8,
+      },
+    },
+    {
+      selector: 'edge',
+      style: {
+        'line-color': GRAPH_COLOR,
+        width: 2,
+        'curve-style': 'bezier',
+        'target-arrow-shape': 'vee',
+        'target-arrow-color': GRAPH_COLOR,
+        'target-arrow-fill': 'filled',
+        'arrow-scale': 2,
+      },
+    },
+    {
+      // Self connections ([a, a]): draw the loop above the box, large enough
+      // to stick out of it (the default loop is hidden inside wide nodes)
+      selector: 'edge:loop',
+      style: {
+        'loop-direction': '0deg',
+        'loop-sweep': '-50deg',
+        'control-point-step-size': 70,
+      },
+    },
+    {
+      selector: 'edge.bidirectional',
+      style: {
+        'source-arrow-shape': 'vee',
+        'source-arrow-color': GRAPH_COLOR,
+        'source-arrow-fill': 'filled',
+      },
+    },
+    {
+      // Track node: everything off the traced chain is dimmed
+      selector: '.faded',
+      style: { opacity: 0.15 },
+    },
+    ...[
+      ['track-parents', parentsColor],
+      ['track-children', childrenColor],
+    ].flatMap(([cls, color]) => [
+      {
+        selector: `edge.${cls}`,
+        style: {
+          'line-color': color,
+          'target-arrow-color': color,
+          'source-arrow-color': color,
+          width: 4,
+        },
+      },
+      {
+        selector: `node.${cls}`,
+        style: { 'border-color': color, 'border-width': 3 },
+      },
+      {
+        selector: `node.${cls}.track-root`,
+        style: { 'border-width': 5, 'background-color': lightTint(color) },
+      },
+    ]),
   ];
 }
 
@@ -650,11 +667,8 @@ export function NodeSearch({ id, options, selectedId, onSelect, noneLabel = NO_N
           ) : (
             matches.map((opt, i) => (
               <li
-                key={opt.id || '__all__'}
-                className={
-                  [i === active && 'active', !opt.id && 'node-search-all'].filter(Boolean).join(' ') ||
-                  undefined
-                }
+                key={opt.id || '__none__'}
+                className={i === active ? 'active' : undefined}
                 onMouseDown={(e) => {
                   e.preventDefault(); // keep focus in the input
                   choose(opt);
@@ -706,8 +720,8 @@ export function create_graph(
     layoutColumns = DEFAULT_LAYOUT_COLUMNS,
   } = options;
   const GRAPH_STYLES = makeStyles({ selectedColor, parentsColor, childrenColor });
-  // Same colors for the Parents/Children switch (read by react-beauti-graph.css)
-  const COLOR_VARS = {
+  // Colors and text sizes for react-beauti-graph.css, set as CSS variables
+  const CSS_VARS = {
     '--rbg-parents-color': parentsColor,
     '--rbg-children-color': childrenColor,
     '--rbg-top-controls-font-size': topControlsFontSize,
@@ -716,7 +730,7 @@ export function create_graph(
   // Nodes listed only in the layout (no folder, no edges) are still shown
   const ALL_ELEMENTS = buildGraph(folders, direct_node_connections, hasLayout ? layout.flat() : []);
   // No layout given: one block of rows per folder
-  const UNIQUE_LAYOUT = hasLayout
+  const LAYOUT = hasLayout
     ? uniquifyLayout(layout)
     : layoutFromFolders(ALL_ELEMENTS, layoutColumns);
 
@@ -770,18 +784,16 @@ export function create_graph(
       const preventNativeMenu = (e) => e.preventDefault();
       containerEl.addEventListener('contextmenu', preventNativeMenu);
 
-      if (UNIQUE_LAYOUT.length > 0) {
-        applyLayout(cy, UNIQUE_LAYOUT, options);
-      }
+      applyLayout(cy, LAYOUT, options);
 
       requestAnimationFrame(() => cy.resize());
 
-      const opts = cy.nodes(REPORT_NODE).map((n) => ({
-        id: n.id(),
-        label: n.data('displayLabel'),
-      }));
-      opts.sort((a, b) => compareNames(a.label, b.label));
-      setNodeOptions(opts);
+      setNodeOptions(
+        cy
+          .nodes(REPORT_NODE)
+          .map((n) => ({ id: n.id(), label: n.data('displayLabel') }))
+          .sort((a, b) => compareNames(a.label, b.label))
+      );
 
       cyRef.current = cy;
 
@@ -813,10 +825,7 @@ export function create_graph(
     const copyToClipboard = () => {
       const { copyText } = contextMenu;
       setContextMenu(null);
-      navigator.clipboard
-        .writeText(copyText)
-        .then(() => console.log(`Copied to clipboard: ${copyText}`))
-        .catch((err) => console.error('Failed to copy:', err));
+      navigator.clipboard.writeText(copyText).catch((err) => console.error('Failed to copy:', err));
     };
 
     // Selects a node (search box or side panel): jumps to it and shows its details
@@ -893,7 +902,7 @@ export function create_graph(
     }, []);
 
     return (
-      <div className="rbg-graph" style={COLOR_VARS}>
+      <div className="rbg-graph" style={CSS_VARS}>
         <div className="controls">
           {/* Each label stays next to its box when the row wraps */}
           <span className="control-group">
@@ -968,10 +977,7 @@ export function create_graph(
                 <button type="button" onClick={() => setNodeInfo(null)} aria-label="Close">×</button>
               </div>
               {nodeInfo.group && <p><strong>Group:</strong> {nodeInfo.group}</p>}
-              {[
-                ['Parent Nodes', nodeInfo.parents],
-                ['Child Nodes', nodeInfo.children],
-              ].filter(([, list]) => list.length > 0).map(([title, list]) => (
+              {infoSections(nodeInfo).map(([title, list]) => (
                 <section key={title}>
                   <h3>{title} ({list.length}):</h3>
                   <ul>

@@ -33,7 +33,6 @@
 }
 
 .rbg-graph .controls label {
-  font-size: var(--rbg-top-controls-font-size, 14px);
   color: #0066cc;
   white-space: nowrap;
 }
@@ -69,7 +68,6 @@
   border-radius: 4px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   color: #0066cc;
-  font-size: var(--rbg-top-controls-font-size, 14px);
   line-height: 1.5;
   z-index: 1000;
 }
@@ -89,7 +87,6 @@
   display: inline-flex;
   align-items: center;
   gap: 0.45em;
-  font-size: var(--rbg-top-controls-font-size, 14px);
   color: #999;
   white-space: nowrap;
 }
@@ -129,8 +126,13 @@
   transition: left 0.15s;
 }
 
+/* Switch on: Children */
 .rbg-graph .switch[aria-checked='true'] {
   background: var(--rbg-children-color, #7b1fa2);
+}
+
+.rbg-graph .switch[aria-checked='true'] .switch-knob {
+  left: 18px;
 }
 
 /* Track node is "No tracking": nothing to track, the switch is greyed out */
@@ -140,10 +142,6 @@
 
 .rbg-graph .switch:disabled {
   cursor: not-allowed;
-}
-
-.rbg-graph .switch[aria-checked='true'] .switch-knob {
-  left: 18px;
 }
 
 .rbg-graph .node-search input {
