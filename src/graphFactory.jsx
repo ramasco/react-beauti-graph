@@ -10,28 +10,37 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import cytoscape from 'cytoscape';
 
-// ---- Defaults, each one overridable with the create_graph option named in its comment ----
+// Defaults live in default_setting.js; re-exported so they stay importable from here
+import {
+  DEFAULT_SELECTED_COLOR,
+  DEFAULT_TRACK1_PARENTS_COLOR,
+  DEFAULT_TRACK1_CHILDREN_COLOR,
+  DEFAULT_TRACK2_PARENTS_COLOR,
+  DEFAULT_TRACK2_CHILDREN_COLOR,
+  DEFAULT_TRACK_COMMON_COLOR,
+  DEFAULT_LAYOUT_COLUMNS,
+  DEFAULT_TOP_CONTROLS_FONT_SIZE,
+  DEFAULT_RIGHT_DISPLAY_FONT_SIZE,
+  GRAPH_COLOR,
+  REPORT_BACKGROUND_COLOR,
+  FOLDER_BACKGROUND_COLOR,
+} from './default_setting';
 
-// Color of the node picked in "Select a node" (options.selectedColor)
-export const DEFAULT_SELECTED_COLOR = '#e91e63';
-// "Track node 1" chain colors (options.parentsColor, options.childrenColor)
-export const DEFAULT_PARENTS_COLOR = '#2e7d32';
-export const DEFAULT_CHILDREN_COLOR = '#7b1fa2';
-// "Track node 2" chain colors (options.track2ParentsColor, options.track2ChildrenColor).
-// Nodes and edges on both chains are drawn in a mix of the two chain colors.
-export const DEFAULT_TRACK2_PARENTS_COLOR = '#ef6c00';
-export const DEFAULT_TRACK2_CHILDREN_COLOR = '#00897b';
-// Reports per row when the layout is built from the folders (options.layoutColumns)
-export const DEFAULT_LAYOUT_COLUMNS = 10;
-// Text size of the top controls row: "Select a node", "Track node", ... (options.topControlsFontSize)
-export const DEFAULT_TOP_CONTROLS_FONT_SIZE = '22px';
-// Text size of the right details panel (options.rightDisplayFontSize)
-export const DEFAULT_RIGHT_DISPLAY_FONT_SIZE = '18px';
+export * from './default_setting';
 
-// ---- Fixed look ----
-
-// Base color of the graph: node text, node borders, edges and arrows (blue)
-const GRAPH_COLOR = '#0066cc';
+// The + / - buttons change the text size of the chosen area by this many pixels per click,
+// within these limits. Sizes of the graph text (px) before the buttons change them.
+const FONT_STEP = 2;
+const MIN_FONT_DELTA = -8;
+const MAX_FONT_DELTA = 16;
+const REPORT_FONT_SIZE = 16;
+const FOLDER_FONT_SIZE = 14;
+// Areas the font dropdown can pick
+const FONT_AREAS = [
+  ['top', 'Font Top Panel'],
+  ['right', 'Font Right Panel'],
+  ['graph', 'Font Graph Panel'],
+];
 // Report box size: wide enough for its label
 const NODE_MIN_WIDTH = 200;
 const NODE_HEIGHT = 60;
@@ -309,10 +318,13 @@ export function getVisibleElements(allElements, showFolders, showGroupInLabel) {
  * Collects the details shown in the side panel for a report node.
  * Parents point to the node, children are pointed to by it;
  * a two-way edge makes the other node both a parent and a child.
+ * With allLevels, the lists hold the whole chains instead: the parents of the parents, ...
+ * and the children of the children, ... (the node itself is left out).
  * @param {cytoscape.NodeSingular} node - The double-clicked node
+ * @param {boolean} [allLevels] - Every level of parents and children, not just the first
  * @returns {{id: string, name: string, group: string|null, parents: Object[], children: Object[]}}
  */
-export function getNodeInfo(node) {
+export function getNodeInfo(node, allLevels = false) {
   const describe = (n) => ({ id: n.id(), name: n.data('rawLabel') ?? n.id(), group: n.data('group') });
   const parents = new Map();
   const children = new Map();
@@ -328,6 +340,17 @@ export function getNodeInfo(node) {
       if (twoWay) parents.set(edge.target().id(), describe(edge.target()));
     }
   });
+
+  if (allLevels) {
+    for (const [map, direction] of [[parents, 'parents'], [children, 'children']]) {
+      map.clear();
+      getTrackedElements(node, direction)
+        .nodes()
+        .forEach((n) => {
+          if (!n.same(node)) map.set(n.id(), describe(n));
+        });
+    }
+  }
 
   const byName = (a, b) => compareNames(a.name, b.name);
   return {
@@ -384,7 +407,7 @@ function infoSections(info) {
 }
 
 /**
- * The elements to hide for the reports unchecked in "Select a node": those reports
+ * The elements to hide for the reports unchecked in "Node to Display": those reports
  * (Cytoscape then hides their edges too) and the folders left with no visible report.
  * @param {cytoscape.Core} cy - Cytoscape instance
  * @param {Set<string>} hiddenIds - IDs of the reports to hide
@@ -415,16 +438,19 @@ export function formatNodeInfo(info) {
 }
 
 /**
- * Mixes a "#rrggbb" color with white (used as the tracked node's fill).
+ * Mixes a "#rrggbb" or "rgb(r, g, b)" color with white (used as the tracked node's fill).
  * Other color formats fall back to white.
- * @param {string} color - Hex color
+ * @param {string} color - Hex or rgb() color
  * @param {number} [amount=0.88] - Share of white, 0..1
  * @returns {string} Hex color
  */
 export function lightTint(color, amount = 0.88) {
-  const m = /^#([0-9a-f]{6})$/i.exec(color);
-  if (!m) return '#ffffff';
-  const value = parseInt(m[1], 16);
+  const hex = /^#([0-9a-f]{6})$/i.exec(color);
+  const rgb = /^rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)$/i.exec(color);
+  if (!hex && !rgb) return '#ffffff';
+  const value = hex
+    ? parseInt(hex[1], 16)
+    : (Math.min(+rgb[1], 255) << 16) | (Math.min(+rgb[2], 255) << 8) | Math.min(+rgb[3], 255);
   return (
     '#' +
     [16, 8, 0]
@@ -437,61 +463,15 @@ export function lightTint(color, amount = 0.88) {
 }
 
 /**
- * Mixes two "#rrggbb" colors half and half (used where the two tracked chains meet).
- * If one of them is not a hex color, the other one is returned.
- * @param {string} a - Hex color
- * @param {string} b - Hex color
- * @returns {string} Hex color
- */
-export function mixColors(a, b) {
-  const parse = (c) => {
-    const m = /^#([0-9a-f]{6})$/i.exec(c ?? '');
-    return m ? parseInt(m[1], 16) : null;
-  };
-  const x = parse(a);
-  const y = parse(b);
-  if (x === null) return b;
-  if (y === null) return a;
-  return (
-    '#' +
-    [16, 8, 0]
-      .map((shift) =>
-        Math.round((((x >> shift) & 0xff) + ((y >> shift) & 0xff)) / 2)
-          .toString(16)
-          .padStart(2, '0')
-      )
-      .join('')
-  );
-}
-
-/**
- * Track node chain colors, [track 1, track 2], each with its parents and children color.
- * @param {Object} [colors] - parentsColor, childrenColor, track2ParentsColor, track2ChildrenColor
- * @returns {[{parents: string, children: string}, {parents: string, children: string}]}
- */
-export function trackColors({
-  parentsColor = DEFAULT_PARENTS_COLOR,
-  childrenColor = DEFAULT_CHILDREN_COLOR,
-  track2ParentsColor = DEFAULT_TRACK2_PARENTS_COLOR,
-  track2ChildrenColor = DEFAULT_TRACK2_CHILDREN_COLOR,
-} = {}) {
-  return [
-    { parents: parentsColor, children: childrenColor },
-    { parents: track2ParentsColor, children: track2ChildrenColor },
-  ];
-}
-
-/**
  * Highlights the tracked chains (Track node 1 and 2) and dims the rest.
  * Elements on one chain get that track's class (track-parents, track2-children, ...);
- * elements on both chains also get "track-mixed" with the mixed color in
+ * elements on both chains also get "track-mixed" with the common color in
  * data(trackMixColor) and, for the tracked nodes, its light tint in data(trackMixFill).
  * @param {cytoscape.Core} cy - Cytoscape instance
  * @param {{id: string, direction: 'parents'|'children'}[]} tracks - Track 1 and Track 2 ('' id = off)
- * @param {[{parents: string, children: string}, {parents: string, children: string}]} colors
- *   Chain colors of track 1 and track 2
+ * @param {string} [commonColor] - Hex color of elements on both chains
  */
-export function applyTracking(cy, tracks, colors) {
+export function applyTracking(cy, tracks, commonColor = DEFAULT_TRACK_COMMON_COLOR) {
   const prefixes = ['track', 'track2'];
   const allClasses = prefixes
     .flatMap((p) => [`${p}-parents`, `${p}-children`, `${p}-root`])
@@ -515,9 +495,8 @@ export function applyTracking(cy, tracks, colors) {
     if (active.length === 0) return;
 
     if (trails[0] && trails[1]) {
-      const mixed = mixColors(colors[0][tracks[0].direction], colors[1][tracks[1].direction]);
       trails[0].intersection(trails[1]).forEach((ele) => {
-        ele.data({ trackMixColor: mixed, trackMixFill: lightTint(mixed) });
+        ele.data({ trackMixColor: commonColor, trackMixFill: lightTint(commonColor) });
         ele.addClass('track-mixed');
       });
     }
@@ -537,8 +516,8 @@ export function applyTracking(cy, tracks, colors) {
  */
 export function makeStyles({
   selectedColor = DEFAULT_SELECTED_COLOR,
-  parentsColor = DEFAULT_PARENTS_COLOR,
-  childrenColor = DEFAULT_CHILDREN_COLOR,
+  parentsColor = DEFAULT_TRACK1_PARENTS_COLOR,
+  childrenColor = DEFAULT_TRACK1_CHILDREN_COLOR,
   track2ParentsColor = DEFAULT_TRACK2_PARENTS_COLOR,
   track2ChildrenColor = DEFAULT_TRACK2_CHILDREN_COLOR,
 } = {}) {
@@ -546,9 +525,10 @@ export function makeStyles({
     {
       selector: 'node',
       style: {
-        'background-color': '#fff',
+        'background-color': REPORT_BACKGROUND_COLOR,
         label: 'data(graphLabel)',
         shape: 'rectangle',
+        'font-size': REPORT_FONT_SIZE,
         color: GRAPH_COLOR,
         'border-width': 2,
         'border-color': GRAPH_COLOR,
@@ -567,12 +547,12 @@ export function makeStyles({
     {
       selector: 'node:parent',
       style: {
-        'background-color': '#f0f8ff',
+        'background-color': FOLDER_BACKGROUND_COLOR,
         'background-opacity': 0.5,
         'border-style': 'dashed',
         label: 'data(label)',
         'text-valign': 'top',
-        'font-size': 14,
+        'font-size': FOLDER_FONT_SIZE,
         'font-weight': 'bold',
         padding: '18px',
       },
@@ -644,7 +624,7 @@ export function makeStyles({
         style: { 'border-width': 5, 'background-color': lightTint(color) },
       },
     ]),
-    // On both tracked chains: the mix of the two chain colors (set per element by applyTracking)
+    // On both tracked chains: the common color (set per element by applyTracking)
     {
       selector: 'edge.track-mixed',
       style: {
@@ -663,7 +643,7 @@ export function makeStyles({
       style: { 'border-width': 6, 'background-color': 'data(trackMixFill)' },
     },
     {
-      // Unchecked in "Select a node": not drawn (nor are its edges)
+      // Unchecked in "Node to Display": not drawn (nor are its edges)
       selector: '.hidden',
       style: { display: 'none' },
     },
@@ -861,9 +841,9 @@ export function NodeSearch({
  *   e.g. create_graph(folders, direct_node_connections, options), to build it from the folders
  * @param {Object} options - Layout rendering options (startX, startY, offsetX, offsetY, base,
  *   layoutColumns = reports per row when the layout is built from the folders)
- *   plus the colors ("#rrggbb"): selectedColor (Select a node), parentsColor and
+ *   plus the colors ("#rrggbb"): selectedColor (Node to Display), parentsColor and
  *   childrenColor (Track node 1), track2ParentsColor and track2ChildrenColor (Track node 2;
- *   elements on both chains get a mix of the two colors), topControlsFontSize (text size of the top controls row, e.g. '16px')
+ *   commonColor = elements on both chains, default rgb(239, 108, 0)), topControlsFontSize (text size of the top controls row, e.g. '16px')
  *   and rightDisplayFontSize (text size of the right details panel)
  * @returns {React.FC} Graph component
  */
@@ -881,15 +861,15 @@ export function create_graph(
   const hasLayout = Array.isArray(layout) && layout.length > 0;
   const {
     selectedColor = DEFAULT_SELECTED_COLOR,
-    parentsColor = DEFAULT_PARENTS_COLOR,
-    childrenColor = DEFAULT_CHILDREN_COLOR,
+    parentsColor = DEFAULT_TRACK1_PARENTS_COLOR,
+    childrenColor = DEFAULT_TRACK1_CHILDREN_COLOR,
     track2ParentsColor = DEFAULT_TRACK2_PARENTS_COLOR,
     track2ChildrenColor = DEFAULT_TRACK2_CHILDREN_COLOR,
+    commonColor = DEFAULT_TRACK_COMMON_COLOR,
     topControlsFontSize = DEFAULT_TOP_CONTROLS_FONT_SIZE,
     rightDisplayFontSize = DEFAULT_RIGHT_DISPLAY_FONT_SIZE,
     layoutColumns = DEFAULT_LAYOUT_COLUMNS,
   } = options;
-  const TRACK_COLORS = trackColors({ parentsColor, childrenColor, track2ParentsColor, track2ChildrenColor });
   const GRAPH_STYLES = makeStyles({
     selectedColor,
     parentsColor,
@@ -897,12 +877,10 @@ export function create_graph(
     track2ParentsColor,
     track2ChildrenColor,
   });
-  // Colors and text sizes for react-beauti-graph.css, set as CSS variables
+  // Colors for react-beauti-graph.css, set as CSS variables (the text sizes are added in the component)
   const CSS_VARS = {
     '--rbg-parents-color': parentsColor,
     '--rbg-children-color': childrenColor,
-    '--rbg-top-controls-font-size': topControlsFontSize,
-    '--rbg-right-display-font-size': rightDisplayFontSize,
   };
   // The Track node 2 switch reuses the same CSS with its own colors
   const TRACK2_CSS_VARS = {
@@ -923,15 +901,20 @@ export function create_graph(
     const [nodeOptions, setNodeOptions] = useState([]);
     const [selectedId, setSelectedId] = useState('');
     const [fitRequest, setFitRequest] = useState(0); // bumped to zoom out to the full graph
-    const [trackedId, setTrackedId] = useState(''); // '' = No tracking
+    const [trackedId, setTrackedId] = useState(''); // '' = Show Nothing
     const [trackDirection, setTrackDirection] = useState('parents'); // 'parents' | 'children'
-    const [tracked2Id, setTracked2Id] = useState(''); // Track node 2, '' = No tracking
+    const [tracked2Id, setTracked2Id] = useState(''); // Track node 2, '' = Show Nothing
     const [track2Direction, setTrack2Direction] = useState('parents');
     const [showFolders, setShowFolders] = useState(true);
     const [showGroupInLabel, setShowGroupInLabel] = useState(true);
     const [contextMenu, setContextMenu] = useState(null); // { x, y, copyText }
     const [nodeInfo, setNodeInfo] = useState(null); // details panel for a double-clicked node
-    const [hiddenIds, setHiddenIds] = useState(() => new Set()); // reports unchecked in "Select a node"
+    const [fontArea, setFontArea] = useState('top'); // area the + / - buttons change
+    const [fontDeltas, setFontDeltas] = useState({ top: 0, right: 0, graph: 0 }); // px added per area
+    const [allLevels, setAllLevels] = useState(false); // panel: one level (default) or all levels
+    const allLevelsRef = useRef(false); // read by the Cytoscape event handlers
+    allLevelsRef.current = allLevels;
+    const [hiddenIds, setHiddenIds] = useState(() => new Set()); // reports unchecked in "Node to Display"
 
     // Initialize Cytoscape graph (rebuilt when a toggle changes)
     useEffect(() => {
@@ -948,14 +931,14 @@ export function create_graph(
       // Right click on a report node opens the "Save to clipboard" menu
       // (copies the same information the side panel shows)
       cy.on('cxttap', REPORT_NODE, (evt) => {
-        const copyText = formatNodeInfo(getNodeInfo(evt.target));
+        const copyText = formatNodeInfo(getNodeInfo(evt.target, allLevelsRef.current));
         const { clientX, clientY } = evt.originalEvent;
         setContextMenu({ x: clientX, y: clientY, copyText });
       });
 
       // Double click on a report node shows its details in the side panel
       cy.on('dbltap', REPORT_NODE, (evt) => {
-        setNodeInfo(getNodeInfo(evt.target));
+        setNodeInfo(getNodeInfo(evt.target, allLevelsRef.current));
       });
 
       // Close the menu on any other interaction with the graph
@@ -990,6 +973,25 @@ export function create_graph(
       };
     }, [showFolders, showGroupInLabel]);
 
+    // Graph text: the + / - buttons grow or shrink the labels, and the boxes with them.
+    // Declared after the effect above, so it also runs when that one rebuilds the graph.
+    useEffect(() => {
+      const cy = cyRef.current;
+      if (!cy) return;
+      const delta = fontDeltas.graph;
+      const scale = (REPORT_FONT_SIZE + delta) / REPORT_FONT_SIZE;
+      cy.batch(() => {
+        cy.nodes(REPORT_NODE).forEach((n) => {
+          n.style({
+            'font-size': REPORT_FONT_SIZE + delta,
+            width: n.data('nodeWidth') * scale,
+            height: n.data('nodeHeight') * scale,
+          });
+        });
+        cy.nodes(':parent').style('font-size', FOLDER_FONT_SIZE + delta);
+      });
+    }, [fontDeltas.graph, showFolders, showGroupInLabel]);
+
     // Close the context menu on outside click or Escape
     useEffect(() => {
       if (!contextMenu) return;
@@ -1013,7 +1015,7 @@ export function create_graph(
       navigator.clipboard.writeText(copyText).catch((err) => console.error('Failed to copy:', err));
     };
 
-    // Checkbox next to a report in "Select a node": show or hide it
+    // Checkbox next to a report in "Node to Display": show or hide it
     const toggleVisible = (id) => {
       setHiddenIds((prev) => {
         const next = new Set(prev);
@@ -1030,7 +1032,7 @@ export function create_graph(
       if (!node || node.empty()) return;
       if (hiddenIds.has(id)) toggleVisible(id);
       setSelectedId(id);
-      setNodeInfo(getNodeInfo(node));
+      setNodeInfo(getNodeInfo(node, allLevels));
     };
 
     // ALL (or clearing the search): no selection, no details panel, whole graph in view
@@ -1040,7 +1042,7 @@ export function create_graph(
       setFitRequest((n) => n + 1);
     };
 
-    // Hide the reports unchecked in "Select a node".
+    // Hide the reports unchecked in "Node to Display".
     // Also re-applied when a toggle rebuilds the graph. Runs before the zoom effects
     // below, so a hidden node picked in the list is shown before zooming to it.
     useEffect(() => {
@@ -1078,7 +1080,7 @@ export function create_graph(
       }
     }, [selectedId, showFolders, showGroupInLabel]);
 
-    // Track node 1 and 2: highlight each chain of parents/children (mixed color where
+    // Track node 1 and 2: highlight each chain of parents/children (common color where
     // they meet), dim the rest. Also re-applied when a toggle rebuilds the graph.
     useEffect(() => {
       const cy = cyRef.current;
@@ -1089,7 +1091,7 @@ export function create_graph(
           { id: trackedId, direction: trackDirection },
           { id: tracked2Id, direction: track2Direction },
         ],
-        TRACK_COLORS
+        commonColor
       );
     }, [trackedId, trackDirection, tracked2Id, track2Direction, showFolders, showGroupInLabel]);
 
@@ -1107,11 +1109,19 @@ export function create_graph(
     }, []);
 
     return (
-      <div className="rbg-graph" style={CSS_VARS}>
+      <div
+        className="rbg-graph"
+        style={{
+          ...CSS_VARS,
+          // The + / - buttons add px to the configured sizes
+          '--rbg-top-controls-font-size': `calc(${topControlsFontSize} + ${fontDeltas.top}px)`,
+          '--rbg-right-display-font-size': `calc(${rightDisplayFontSize} + ${fontDeltas.right}px)`,
+        }}
+      >
         <div className="controls">
           {/* Each label stays next to its box when the row wraps */}
           <span className="control-group">
-            <label htmlFor={`${uid}-search`}>Select a node:</label>
+            <label htmlFor={`${uid}-search`}>Node to Display:</label>
             <NodeSearch
               id={`${uid}-search`}
               options={nodeOptions}
@@ -1144,22 +1154,22 @@ export function create_graph(
             [2, tracked2Id, setTracked2Id, track2Direction, setTrack2Direction, TRACK2_CSS_VARS],
           ].map(([n, id, setId, direction, setDirection, style]) => (
             <span className="control-group" key={n} style={style}>
-              <label htmlFor={`${uid}-track${n}`}>Track node {n}:</label>
+              <label htmlFor={`${uid}-track${n}`}>Show Dependency {n}:</label>
               <NodeSearch
                 id={`${uid}-track${n}`}
                 options={nodeOptions}
                 selectedId={id}
                 onSelect={setId}
-                noneLabel="No tracking"
+                noneLabel="Show Nothing"
               />
-              {/* Nothing to track on "No tracking", so the switch is disabled */}
+              {/* Nothing to track on "Show Nothing", so the switch is disabled */}
               <span className={id ? 'track-switch' : 'track-switch disabled'}>
                 <span className={direction === 'parents' ? 'parents on' : 'parents'}>Parents</span>
                 <button
                   type="button"
                   role="switch"
                   aria-checked={direction === 'children'}
-                  aria-label={`Track node ${n}: track children instead of parents`}
+                  aria-label={`Show Dependency ${n}: track children instead of parents`}
                   className="switch"
                   disabled={!id}
                   onClick={() => setDirection((d) => (d === 'parents' ? 'children' : 'parents'))}
@@ -1180,6 +1190,32 @@ export function create_graph(
               <strong>Right click</strong> on a node to save the same information to the clipboard.
             </span>
           </span>
+          <span className="font-size-buttons">
+            <select
+              aria-label="Area whose text size the + and - buttons change"
+              value={fontArea}
+              onChange={(e) => setFontArea(e.target.value)}
+            >
+              {FONT_AREAS.map(([area, label]) => (
+                <option key={area} value={area}>{label}</option>
+              ))}
+            </select>
+            {[
+              ['Smaller text', '−', -FONT_STEP, fontDeltas[fontArea] <= MIN_FONT_DELTA],
+              ['Larger text', '+', FONT_STEP, fontDeltas[fontArea] >= MAX_FONT_DELTA],
+            ].map(([label, symbol, step, atLimit]) => (
+              <button
+                key={label}
+                type="button"
+                className="help-icon"
+                aria-label={label}
+                disabled={atLimit}
+                onClick={() => setFontDeltas((d) => ({ ...d, [fontArea]: d[fontArea] + step }))}
+              >
+                {symbol}
+              </button>
+            ))}
+          </span>
         </div>
         <div className="graph-area">
           <div ref={containerRef} className="cy-container" />
@@ -1190,6 +1226,25 @@ export function create_graph(
                 <button type="button" onClick={() => setNodeInfo(null)} aria-label="Close">×</button>
               </div>
               {nodeInfo.group && <p><strong>Group:</strong> {nodeInfo.group}</p>}
+              <div className="track-switch level-switch">
+                <span className={allLevels ? '' : 'parents on'}>One level</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={allLevels}
+                  aria-label="Show all levels of parents and children"
+                  className="switch"
+                  onClick={() => {
+                    const next = !allLevels;
+                    setAllLevels(next);
+                    const node = cyRef.current?.getElementById(nodeInfo.id);
+                    if (node && !node.empty()) setNodeInfo(getNodeInfo(node, next));
+                  }}
+                >
+                  <span className="switch-knob" />
+                </button>
+                <span className={allLevels ? 'children on' : ''}>All levels</span>
+              </div>
               {infoSections(nodeInfo).map(([title, list]) => (
                 <section key={title}>
                   <h3>{title} ({list.length}):</h3>

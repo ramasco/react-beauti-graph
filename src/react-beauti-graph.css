@@ -56,6 +56,29 @@
   cursor: help;
 }
 
+.rbg-graph .font-size-buttons {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.rbg-graph .font-size-buttons select {
+  font-size: inherit;
+  color: #0066cc;
+  border: 1px solid #0066cc;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.rbg-graph .font-size-buttons .help-icon {
+  cursor: pointer;
+}
+
+.rbg-graph .font-size-buttons .help-icon:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .rbg-graph .help-tooltip {
   display: none;
   position: absolute;
@@ -201,7 +224,7 @@
   background: #e8f0fb;
 }
 
-/* Visibility checkbox in "Select a node" */
+/* Visibility checkbox in "Node to Display" */
 .rbg-graph .node-search-list li input[type='checkbox'] {
   margin: 0 0.5em 0 0;
   vertical-align: middle;
@@ -325,4 +348,9 @@
 
 .rbg-graph .node-context-menu button:hover {
   background: #e8f0fb;
+}
+
+/* One level / All levels switch under Group in the details panel */
+.rbg-graph .node-info-panel .level-switch {
+  margin: 4px 0 8px;
 }
