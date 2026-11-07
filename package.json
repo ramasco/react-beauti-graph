@@ -1,7 +1,7 @@
 {
   "name": "react-beauti-graph",
-  "version": "1.1.0",
-  "description": "React graph component built on Cytoscape: folders, grid layout, two-way arrows, search, details panel and clipboard export.",
+  "version": "1.2.0",
+  "description": "React graph component built on Cytoscape: groups, grid layout, two-way arrows, search, details panel and clipboard export.",
   "keywords": [
     "react",
     "graph",

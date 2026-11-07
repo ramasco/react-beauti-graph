@@ -47,15 +47,10 @@ _The [quick start](#quick-start) example, with the_ Node to Display _list open._
 From the [GitHub release](https://github.com/ramasco/react-beauti-graph/releases/latest):
 
 ```bash
-npm install https://github.com/ramasco/react-beauti-graph/releases/download/v1.1.0/react-beauti-graph-1.1.0.tgz
+npm install https://github.com/ramasco/react-beauti-graph/releases/download/v1.2.0/react-beauti-graph-1.2.0.tgz
 ```
 
 Requires React 18 or newer. Cytoscape is installed automatically.
-
-> The release above is the last published one. The features of this page that it does not have yet
-> (_Show Dependency 2_, `commonColor`, the _All levels_ switch, the text size buttons and the TypeScript
-> types) come with the next release; until then, build the package from this repository
-> (see [Development](#development)).
 
 Want to try it first? The example app in `examples/` runs the graph with sample data: see [Development](#development).
 
