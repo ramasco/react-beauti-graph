@@ -12,3 +12,8 @@ body {
   display: flex;
   flex-direction: column;
 }
+.demo-bar {
+  padding: 6px 10px;
+  border-bottom: 1px solid #ddd;
+  font-size: 14px;
+}

@@ -1,4 +1,4 @@
-// Builds the npm library into dist/ (the Next.js demo app is not included)
+// Builds the npm library into dist/ (the demo app is built by vite.config.mjs)
 import { copyFileSync } from 'node:fs';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
@@ -10,6 +10,7 @@ export default defineConfig({
       name: 'copy-styles',
       closeBundle() {
         copyFileSync('src/react-beauti-graph.css', 'dist/style.css');
+        copyFileSync('src/index.d.ts', 'dist/index.d.ts');
       },
     },
   ],

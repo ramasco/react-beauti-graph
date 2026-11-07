@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import cytoscape from 'cytoscape';
 import {
   REPORT_NODE,
-  STYLES,
   applyLayout,
   buildGraph,
   compareNames,
@@ -13,16 +12,18 @@ import {
   getTrackedElements,
   lightTint,
   makeStyles,
+  DEFAULT_TRACK_COMMON_COLOR,
+  applyTracking,
   getVisibleElements,
   layoutFromFolders,
   uniqueId,
   uniquifyLayout,
-} from '../graphFactory';
+} from '../src/graphFactory';
 
 /** Headless Cytoscape instance built the same way the component builds it */
-function makeCy(folders, direct_node_connections, extraIds = [], { showFolders = true, showGroupInLabel = true } = {}) {
-  const elements = getVisibleElements(buildGraph(folders, direct_node_connections, extraIds), showFolders, showGroupInLabel);
-  return cytoscape({ headless: true, styleEnabled: true, elements, style: STYLES });
+function makeCy(node_groups, direct_node_connections, extraIds = [], { showFolders = true, showGroupInLabel = true } = {}) {
+  const elements = getVisibleElements(buildGraph(node_groups, direct_node_connections, extraIds), showFolders, showGroupInLabel);
+  return cytoscape({ headless: true, styleEnabled: true, elements, style: makeStyles() });
 }
 
 const nodesOf = (elements) => elements.filter((e) => !e.data.source);
@@ -219,6 +220,24 @@ describe('REPORT_NODE selector', () => {
   });
 });
 
+describe('getNodeInfo with allLevels', () => {
+  // a -> b -> c -> d, and e -> b
+  const cy = makeCy({}, [['a', 'b'], ['b', 'c'], ['c', 'd'], ['e', 'b']]);
+  const ids = (list) => list.map((x) => x.id);
+
+  it('lists only the direct neighbours by default', () => {
+    const info = getNodeInfo(cy.getElementById('c'));
+    expect(ids(info.parents)).toEqual(['b']);
+    expect(ids(info.children)).toEqual(['d']);
+  });
+
+  it('lists every ancestor and descendant, without the node itself', () => {
+    const info = getNodeInfo(cy.getElementById('c'), true);
+    expect(ids(info.parents)).toEqual(['a', 'b', 'e']);
+    expect(ids(info.children)).toEqual(['d']);
+  });
+});
+
 describe('getNodeInfo', () => {
   const cy = makeCy(
     { Sales: ['a', 'b'] },
@@ -336,7 +355,7 @@ describe('layoutFromFolders (no layout given)', () => {
   });
 });
 
-describe('STYLES', () => {
+describe('makeStyles (default stylesheet)', () => {
   const cy = makeCy({}, [['a', 'b'], ['b', 'a'], ['a', 'c'], ['d', 'd']]);
   const edge = (s, t) => cy.edges().filter((e) => e.source().id() === s && e.target().id() === t);
 
@@ -361,7 +380,7 @@ describe('STYLES', () => {
   });
 });
 
-describe('getHiddenElements (unchecked in Select a node)', () => {
+describe('getHiddenElements (unchecked in Node to Display)', () => {
   const ids = (eles) => eles.map((e) => e.id()).sort();
 
   it('hides nothing when every report is checked', () => {
@@ -444,7 +463,67 @@ describe('track colors', () => {
   it('lightTint mixes a color with white', () => {
     expect(lightTint('#000000', 0.5)).toBe('#808080');
     expect(lightTint('#ffffff')).toBe('#ffffff');
-    expect(lightTint('red')).toBe('#ffffff'); // non-hex falls back to white
+    expect(lightTint('rgb(239, 108, 0)')).toBe(lightTint('#ef6c00'));
+    expect(lightTint('red')).toBe('#ffffff'); // other formats fall back to white
+  });
+
+  it('has yellow/brown defaults for Track node 2, overridable', () => {
+    expect(styleOf(makeStyles(), 'edge.track2-parents')['line-color']).toBe('#efeb00');
+    expect(styleOf(makeStyles(), 'edge.track2-children')['line-color']).toBe('#8b4513');
+    const styles = makeStyles({ track2ParentsColor: '#123456' });
+    expect(styleOf(styles, 'node.track2-parents.track2-root')['background-color']).toBe(lightTint('#123456'));
+  });
+
+  it('applyTracking takes the common color as a parameter', () => {
+    const cy = makeCy({}, [['a', 'b'], ['b', 'c']]);
+    applyTracking(cy, [{ id: 'c', direction: 'parents' }, { id: 'a', direction: 'children' }], '#123456');
+    expect(cy.getElementById('b').data('trackMixColor')).toBe('#123456');
+  });
+});
+
+describe('applyTracking (Track node 1 and 2)', () => {
+  // a -> b -> c, and d -> b
+  const setup = () => makeCy({}, [['a', 'b'], ['b', 'c'], ['d', 'b']]);
+  const classesOf = (cy, id) => cy.getElementById(id).classes();
+
+  it('highlights one track and dims the rest', () => {
+    const cy = setup();
+    applyTracking(cy, [{ id: 'c', direction: 'parents' }, { id: '', direction: 'parents' }]);
+    expect(classesOf(cy, 'c')).toEqual(expect.arrayContaining(['track-parents', 'track-root']));
+    expect(cy.getElementById('a').hasClass('track-parents')).toBe(true);
+    expect(cy.getElementById('d').hasClass('track-parents')).toBe(true);
+    expect(cy.$('.faded').length).toBe(0); // every node is a parent of c
+    expect(cy.$('.track-mixed').length).toBe(0);
+  });
+
+  it('uses track 2 classes for the second track', () => {
+    const cy = setup();
+    applyTracking(cy, [{ id: '', direction: 'parents' }, { id: 'a', direction: 'children' }]);
+    expect(classesOf(cy, 'a')).toEqual(expect.arrayContaining(['track2-children', 'track2-root']));
+    expect(cy.getElementById('c').hasClass('track2-children')).toBe(true);
+    expect(cy.getElementById('d').hasClass('faded')).toBe(true);
+  });
+
+  it('uses the common color on elements both tracks share', () => {
+    const cy = setup();
+    // Track 1: parents of c = a, b, c, d. Track 2: children of a = a, b, c
+    applyTracking(cy, [{ id: 'c', direction: 'parents' }, { id: 'a', direction: 'children' }]);
+    const mixed = DEFAULT_TRACK_COMMON_COLOR;
+    const shared = cy.$('.track-mixed');
+    expect(shared.nodes().map((n) => n.id()).sort()).toEqual(['a', 'b', 'c']);
+    expect(shared.edges().length).toBe(2); // a->b, b->c
+    expect(cy.getElementById('b').data('trackMixColor')).toBe(mixed);
+    expect(cy.getElementById('a').data('trackMixFill')).toBe(lightTint(mixed));
+    expect(cy.getElementById('d').hasClass('track-mixed')).toBe(false);
+    expect(cy.getElementById('d').hasClass('track-parents')).toBe(true);
+  });
+
+  it('clears everything when both tracks are off', () => {
+    const cy = setup();
+    applyTracking(cy, [{ id: 'c', direction: 'parents' }, { id: 'a', direction: 'children' }]);
+    applyTracking(cy, [{ id: '', direction: 'parents' }, { id: '', direction: 'parents' }]);
+    expect(cy.$('.faded, .track-mixed, .track-parents, .track2-children').length).toBe(0);
+    expect(cy.getElementById('b').data('trackMixColor')).toBeUndefined();
   });
 });
 
