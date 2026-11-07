@@ -10,24 +10,30 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import cytoscape from 'cytoscape';
 
-// ---- Defaults, each one overridable with the create_graph option named in its comment ----
+// Defaults live in default_setting.js; they are re-exported so they stay importable from here
+import {
+  DEFAULT_SELECTED_COLOR,
+  DEFAULT_TRACK1_PARENTS_COLOR,
+  DEFAULT_TRACK1_CHILDREN_COLOR,
+  DEFAULT_LAYOUT_COLUMNS,
+  DEFAULT_TOP_CONTROLS_FONT_SIZE,
+  DEFAULT_RIGHT_DISPLAY_FONT_SIZE,
+  GRAPH_COLOR,
+  REPORT_BACKGROUND_COLOR,
+  FOLDER_BACKGROUND_COLOR,
+} from './default_setting';
 
-// Color of the node picked in "Select a node" (options.selectedColor)
-export const DEFAULT_SELECTED_COLOR = '#e91e63';
-// "Track node" chain colors (options.parentsColor, options.childrenColor)
-export const DEFAULT_PARENTS_COLOR = '#2e7d32';
-export const DEFAULT_CHILDREN_COLOR = '#7b1fa2';
-// Reports per row when the layout is built from the folders (options.layoutColumns)
-export const DEFAULT_LAYOUT_COLUMNS = 10;
-// Text size of the top controls row: "Select a node", "Track node", ... (options.topControlsFontSize)
-export const DEFAULT_TOP_CONTROLS_FONT_SIZE = '22px';
-// Text size of the right details panel (options.rightDisplayFontSize)
-export const DEFAULT_RIGHT_DISPLAY_FONT_SIZE = '18px';
+export {
+  DEFAULT_SELECTED_COLOR,
+  DEFAULT_TRACK1_PARENTS_COLOR,
+  DEFAULT_TRACK1_CHILDREN_COLOR,
+  DEFAULT_LAYOUT_COLUMNS,
+  DEFAULT_TOP_CONTROLS_FONT_SIZE,
+  DEFAULT_RIGHT_DISPLAY_FONT_SIZE,
+};
 
 // ---- Fixed look ----
 
-// Base color of the graph: node text, node borders, edges and arrows (blue)
-const GRAPH_COLOR = '#0066cc';
 // Report box size: wide enough for its label
 const NODE_MIN_WIDTH = 200;
 const NODE_HEIGHT = 60;
@@ -440,14 +446,14 @@ export function lightTint(color, amount = 0.88) {
  */
 export function makeStyles({
   selectedColor = DEFAULT_SELECTED_COLOR,
-  parentsColor = DEFAULT_PARENTS_COLOR,
-  childrenColor = DEFAULT_CHILDREN_COLOR,
+  parentsColor = DEFAULT_TRACK1_PARENTS_COLOR,
+  childrenColor = DEFAULT_TRACK1_CHILDREN_COLOR,
 } = {}) {
   return [
     {
       selector: 'node',
       style: {
-        'background-color': '#fff',
+        'background-color': REPORT_BACKGROUND_COLOR,
         label: 'data(graphLabel)',
         shape: 'rectangle',
         color: GRAPH_COLOR,
@@ -468,7 +474,7 @@ export function makeStyles({
     {
       selector: 'node:parent',
       style: {
-        'background-color': '#f0f8ff',
+        'background-color': FOLDER_BACKGROUND_COLOR,
         'background-opacity': 0.5,
         'border-style': 'dashed',
         label: 'data(label)',
@@ -761,8 +767,8 @@ export function create_graph(
   const hasLayout = Array.isArray(layout) && layout.length > 0;
   const {
     selectedColor = DEFAULT_SELECTED_COLOR,
-    parentsColor = DEFAULT_PARENTS_COLOR,
-    childrenColor = DEFAULT_CHILDREN_COLOR,
+    parentsColor = DEFAULT_TRACK1_PARENTS_COLOR,
+    childrenColor = DEFAULT_TRACK1_CHILDREN_COLOR,
     topControlsFontSize = DEFAULT_TOP_CONTROLS_FONT_SIZE,
     rightDisplayFontSize = DEFAULT_RIGHT_DISPLAY_FONT_SIZE,
     layoutColumns = DEFAULT_LAYOUT_COLUMNS,

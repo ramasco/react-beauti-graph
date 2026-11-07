@@ -5,7 +5,7 @@ import { create_graph } from './graphFactory';
 import { folders, direct_node_connections } from './samples/sampleSmallGraphData';
 // import { folders, direct_node_connections } from './samples/sampleBigGraphData';
 
-// Grid spacing. Colors and text sizes use the DEFAULT_... values in graphFactory.jsx;
+// Grid spacing. Colors and text sizes use the DEFAULT_... values in default_setting.js;
 // set an option here (e.g. parentsColor, topControlsFontSize) only to override one.
 const options = { offsetX: 280, offsetY: 160 };
 
