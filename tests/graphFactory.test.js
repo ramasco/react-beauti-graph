@@ -19,11 +19,11 @@ import {
   layoutFromFolders,
   uniqueId,
   uniquifyLayout,
-} from '../graphFactory';
+} from '../src/graphFactory';
 
 /** Headless Cytoscape instance built the same way the component builds it */
-function makeCy(folders, direct_node_connections, extraIds = [], { showFolders = true, showGroupInLabel = true } = {}) {
-  const elements = getVisibleElements(buildGraph(folders, direct_node_connections, extraIds), showFolders, showGroupInLabel);
+function makeCy(node_groups, direct_node_connections, extraIds = [], { showFolders = true, showGroupInLabel = true } = {}) {
+  const elements = getVisibleElements(buildGraph(node_groups, direct_node_connections, extraIds), showFolders, showGroupInLabel);
   return cytoscape({ headless: true, styleEnabled: true, elements, style: STYLES });
 }
 

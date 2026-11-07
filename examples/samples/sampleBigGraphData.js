@@ -1,7 +1,7 @@
-// 100 reports (r001-r100) in 5 folders; the layout is built from the folders (10 per row).
+// 100 reports (r001-r100) in 5 groups; the layout is built from the groups (10 per row).
 // Generated example data: edit freely.
 
-export const folders = {
+export const node_groups = {
   Sales: ['r001', 'r002', 'r003', 'r004', 'r005', 'r006', 'r007', 'r008', 'r009', 'r010', 'r011', 'r012', 'r013', 'r014', 'r015', 'r016', 'r017', 'r018', 'r019', 'r020'],
   Finance: ['r021', 'r022', 'r023', 'r024', 'r025', 'r026', 'r027', 'r028', 'r029', 'r030', 'r031', 'r032', 'r033', 'r034', 'r035', 'r036', 'r037', 'r038', 'r039', 'r040'],
   Operations: ['r041', 'r042', 'r043', 'r044', 'r045', 'r046', 'r047', 'r048', 'r049', 'r050', 'r051', 'r052', 'r053', 'r054', 'r055', 'r056', 'r057', 'r058', 'r059', 'r060'],

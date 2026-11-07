@@ -3,10 +3,10 @@
 **react-beauti-graph by Antonio Ramasco**
 
 A React component for drawing report dependency graphs with [Cytoscape](https://js.cytoscape.org/).
-Give it your reports, the folders they belong to and the connections between them; it draws the graph
+Give it your reports, the groups they belong to and the connections between them; it draws the graph
 on a grid and adds search, tracing of parents and children, a details panel and clipboard export.
 
-![react-beauti-graph example: reports r001 and r002 in a Sales folder joined by a two-way arrow, an arrow from r002 to r003 in a Finance folder, and the Select a node list open with ALL, r001, r002 and r003](https://raw.githubusercontent.com/ramasco/react-beauti-graph/main/docs/example.jpg)
+![react-beauti-graph example: reports r001 and r002 in a Sales group joined by a two-way arrow, an arrow from r002 to r003 in a Finance group, and the Select a node list open with ALL, r001, r002 and r003](https://raw.githubusercontent.com/ramasco/react-beauti-graph/main/docs/example.jpg)
 
 *The [quick start](#quick-start) example, with the* Node to Display *list open.*
 
@@ -30,8 +30,8 @@ on a grid and adds search, tracing of parents and children, a details panel and 
 
 ## Features
 
-- **Folders (groups)** drawn as dashed boxes around their reports; a report can be in several folders
-- **Automatic grid layout** built from the folders, or your own layout row by row
+- **Groups** drawn as dashed boxes around their reports; a report can be in several groups
+- **Automatic grid layout** built from the groups, or your own layout row by row
 - **Arrows** for connections: `[a, b]` + `[b, a]` become one line with arrows at both ends; `[a, a]` is drawn as a loop
 - **Node to Display**: partial, case-insensitive search; jumps to the report and opens its details
 - **Filter out nodes**: a checkbox next to each report in the *Node to Display* list shows or hides it
@@ -57,8 +57,8 @@ Requires React 18 or newer. Cytoscape is installed automatically. Type definitio
 import { create_graph } from 'react-beauti-graph';
 import 'react-beauti-graph/style.css';
 
-// Reports inside each folder
-const folders = { Sales: ['r001', 'r002'], Finance: ['r003'] };
+// Reports inside each group
+const node_groups = { Sales: ['r001', 'r002'], Finance: ['r003'] };
 
 // Arrows: [source, target]
 const direct_node_connections = [
@@ -68,7 +68,7 @@ const direct_node_connections = [
 ];
 
 // Create the component once, outside your own components
-const MyGraph = create_graph(folders, direct_node_connections, { offsetX: 280, offsetY: 160 });
+const MyGraph = create_graph(node_groups, direct_node_connections, { offsetX: 280, offsetY: 160 });
 
 export default function Page() {
   // The graph fills its container, so give the container a height
@@ -94,23 +94,23 @@ It draws in the browser only, so call `create_graph` and render `<MyGraph />` in
 ## Your data
 
 ```js
-create_graph(folders, direct_node_connections, [layout], [options])
+create_graph(node_groups, direct_node_connections, [layout], [options])
 ```
 
 Returns a React component (no props). Call it once, at the top level of a module: calling it inside a
 component would rebuild the graph on every render.
 
-### `folders`
+### `node_groups`
 
-`{ [folderName]: string[] }`: the report names inside each folder (group).
+`{ [groupName]: string[] }`: the report names inside each group.
 
 ```js
 { Sales: ['r001', 'r002'], Finance: ['r003'] }
 ```
 
-- A report listed in **several folders** is drawn once in each. The copies are named `r001(1)`, `r001(2)`, …;
+- A report listed in **several groups** is drawn once in each. The copies are named `r001(1)`, `r001(2)`, …;
   arrows connect to the first one.
-- Reports that appear only in `direct_node_connections` are drawn without a folder.
+- Reports that appear only in `direct_node_connections` are drawn without a group.
 
 ### `direct_node_connections`
 
@@ -134,12 +134,12 @@ Where each report sits, as a grid: one inner list per row, top to bottom.
 ]
 ```
 
-**Leave it out** and the layout is built from the folders: each folder starts a new row and fills rows of
-at most `layoutColumns` reports (default 10); reports in no folder come last.
+**Leave it out** and the layout is built from the groups: each group starts a new row and fills rows of
+at most `layoutColumns` reports (default 10); reports in no group come last.
 
 ```js
-create_graph(folders, direct_node_connections, options);         // layout built from the folders
-create_graph(folders, direct_node_connections, layout, options);  // your own layout
+create_graph(node_groups, direct_node_connections, options);         // layout built from the groups
+create_graph(node_groups, direct_node_connections, layout, options);  // your own layout
 ```
 
 When you give your own layout:
@@ -147,7 +147,7 @@ When you give your own layout:
 - Report *n* of row *r* is placed at `x = startX + n × offsetX`, `y = startY + r × offsetY` (counting from 1).
 - Put every report in it: a report that is missing has no grid position.
 - Reports listed only in the layout are still drawn.
-- Place the copies of a report that is in several folders with their names: `r001(1)`, …
+- Place the copies of a report that is in several groups with their names: `r001(1)`, …
 - Names that match no report are skipped, and a report listed twice keeps its first position
   (both with a warning in the browser console).
 
@@ -161,7 +161,7 @@ All optional.
 | `offsetY` | `200` | Vertical distance between grid rows, in pixels |
 | `startX`, `startY` | `0` | Position of the grid origin, in pixels |
 | `base` | `1` | Number of the first row and column (`0` puts the first report on the origin) |
-| `layoutColumns` | `10` | Reports per row when the layout is built from the folders |
+| `layoutColumns` | `10` | Reports per row when the layout is built from the groups |
 | `selectedColor` | `'#e91e63'` (pink) | Highlight of the report picked in *Node to Display* |
 | `parentsColor` | `'#2e7d32'` (green) | *Show Dependency 1*: chain of parents |
 | `childrenColor` | `'#7b1fa2'` (purple) | *Show Dependency 1*: chain of children |
@@ -177,7 +177,7 @@ Colors are `#rrggbb` strings (`commonColor` also accepts `rgb(239, 108, 0)`); si
 (`'16px'`, `'1rem'`, …). All the defaults live in `src/default_setting.js`.
 
 ```js
-const MyGraph = create_graph(folders, direct_node_connections, {
+const MyGraph = create_graph(node_groups, direct_node_connections, {
   offsetX: 280,
   offsetY: 160,
   parentsColor: '#1565c0',
@@ -205,7 +205,7 @@ parents, …) and every report below it (children of children, …). The choice 
 ### Filter out nodes
 
 Each report in the *Node to Display* list has a checkbox, checked at first. Uncheck it to remove the report
-and its arrows from the graph; check it again to bring them back. A folder whose reports are all unchecked
+and its arrows from the graph; check it again to bring them back. A group whose reports are all unchecked
 disappears too. Hidden reports stay in the list, greyed out.
 
 Clicking a checkbox does not select the report and keeps the list open, so you can hide several in a row.
@@ -239,14 +239,14 @@ at the graph. Pick what to resize in the dropdown, then click **−** or **+**:
 |---|---|
 | *Font Top Panel* (first choice) | The top row: labels, search boxes, switches and buttons |
 | *Font Right Panel* | The details panel (open it by double clicking a report) |
-| *Font Graph Panel* | The text in the graph: report names and folder names. The report boxes grow or shrink with the text |
+| *Font Graph Panel* | The text in the graph: report names and group names. The report boxes grow or shrink with the text |
 
 - Each click changes the size by 2px, from 8px smaller to 16px larger than the starting size. The button
   is greyed out at the limit.
 - Each area keeps its own size when you switch the dropdown to another one.
 - The starting sizes of the top row and the details panel are the `topControlsFontSize` and
   `rightDisplayFontSize` [options](#options) (`22px` and `18px`). The graph text starts at 16px for reports and
-  14px for folders and has no option.
+  14px for groups and has no option.
 - Sizes are not saved: they go back to the starting size when the page is reloaded.
 - With a large graph text, reports can touch each other; increase `offsetX` and `offsetY` to give them more room.
 
@@ -258,8 +258,8 @@ at the graph. Pick what to resize in the dropdown, then click **−** or **+**:
 |---|---|
 | *Node to Display* | Type part of a name, pick a report: the graph zooms to it and opens its details. *ALL* closes the details and shows the whole graph. |
 | Checkbox next to a report in the *Node to Display* list | Shows or hides the report and its arrows; see [Filter out nodes](#filter-out-nodes). |
-| *Show Groups* | Shows or hides the folder boxes. |
-| *Add Group to Node Name* | Writes the folder after each report name, e.g. `r001 (Sales)`. |
+| *Show Groups* | Shows or hides the group boxes. |
+| *Add Group to Node Name* | Writes the group after each report name, e.g. `r001 (Sales)`. |
 | *Show Dependency 1*, *Show Dependency 2* | Pick a report to highlight its whole chain (parents of parents, … or children of children, …) and dim the rest. *Show Nothing* turns it off. Where the two chains meet, the common color is used. |
 | *Parents / Children* | Which chain the *Show Dependency* next to it follows. Disabled while nothing is tracked. |
 | *Font Top Panel / Font Right Panel / Font Graph Panel* | Dropdown that picks which text the next two buttons resize: the top row, the details panel, or the labels and boxes of the graph. |
@@ -314,18 +314,27 @@ npm test           # unit tests (Vitest)
 npm run build:lib  # build the npm package into dist/
 ```
 
+The project is split in three parts:
+
+| Folder | Contents |
+|---|---|
+| `src/` | **Source code of the library** (this is what gets published) |
+| `tests/` | **Unit tests** (Vitest) |
+| `examples/` | **Demo / example app**: a page that uses the library, not part of the package |
+
 | Path | Contents |
 |---|---|
 | `src/graphFactory.jsx` | The library: `create_graph`, layout, styles, search box |
 | `src/default_setting.js` | Default colors, text sizes and layout (the `DEFAULT_*` values) |
 | `src/react-beauti-graph.css` | The library styles (published as `style.css`) |
 | `src/index.js`, `src/index.d.ts` | Public entry point of the package and its TypeScript types |
-| `src/App.jsx`, `src/main.jsx`, `index.html` | Demo page and the Vite entry that mounts it |
-| `vite.config.mjs`, `vite.lib.config.mjs` | Build of the demo app and of the npm package |
-| `src/samples/` | Demo data: a small example and 100 reports in 5 folders |
-| `src/__tests__/` | Unit tests |
+| `tests/` | `graphFactory.test.js`, `NodeSearch.test.jsx` |
+| `examples/DemoApp.jsx` | The demo page, with the *Demo data* dropdown |
+| `examples/main.jsx`, `examples/index.html`, `examples/index.css` | The Vite entry that mounts the demo page, and its page styles |
+| `examples/samples/` | Demo data: a small example and 100 reports in 5 groups |
+| `vite.config.mjs`, `vite.lib.config.mjs`, `vitest.config.mjs` | Build of the demo app, build of the npm package, and the test setup |
 
-In the demo, switch between the two samples with the import at the top of `src/App.jsx`.
+In the demo, switch between the two samples with the *Demo data* dropdown at the top of the page.
 
 ## License and credits
 

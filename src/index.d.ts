@@ -7,7 +7,7 @@ export interface GraphOptions {
   offsetX?: number;
   offsetY?: number;
   base?: number;
-  /** Reports per row when the layout is built from the folders */
+  /** Reports per row when the layout is built from the groups */
   layoutColumns?: number;
   /** Colors: "#rrggbb" (commonColor also accepts "rgb(r, g, b)") */
   selectedColor?: string;
@@ -21,13 +21,13 @@ export interface GraphOptions {
   rightDisplayFontSize?: string;
 }
 
-/** Report names inside each folder (group) */
-export type Folders = Record<string, string[]>;
+/** Report names inside each group */
+export type NodeGroups = Record<string, string[]>;
 /** Arrows: [source, target] */
 export type Connections = [string, string][];
 
 export function create_graph(
-  folders?: Folders,
+  node_groups?: NodeGroups,
   direct_node_connections?: Connections,
   layout?: string[][] | GraphOptions | null,
   options?: GraphOptions

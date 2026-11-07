@@ -3,7 +3,7 @@
 /**
  * graphFactory.jsx
  * Factory for creating Cytoscape graph components: report nodes grouped in
- * folders, placed on a grid layout, with search, a details panel and a
+ * groups, placed on a grid layout, with search, a details panel and a
  * "save to clipboard" context menu.
  */
 
@@ -167,10 +167,10 @@ export function uniqueId(base, taken) {
 }
 
 /**
- * Builds a layout from the folders, used when no layout is given.
- * Each folder starts a new row and fills rows of at most `columns` reports
- * (folder order, then report order); reports in no folder come last.
- * Copies of a report in several folders ("id(1)", ...) sit in their own folder.
+ * Builds a layout from the groups, used when no layout is given.
+ * Each group starts a new row and fills rows of at most `columns` reports
+ * (group order, then report order); reports in no group come last.
+ * Copies of a report in several groups ("id(1)", ...) sit in their own group.
  * @param {Object[]} elements - Cytoscape elements from buildGraph
  * @param {number} [columns] - Maximum reports per row
  * @returns {string[][]} Layout rows of node IDs
@@ -193,22 +193,22 @@ export function layoutFromFolders(elements, columns = DEFAULT_LAYOUT_COLUMNS) {
 }
 
 /**
- * Builds the Cytoscape elements from folders, edges and extra node IDs.
+ * Builds the Cytoscape elements from groups, edges and extra node IDs.
  * Folders become compound nodes (FOLDER_CLASS); every report becomes a
- * REPORT_CLASS node. A report listed in several folders gets one copy per
- * folder ("id", "id(1)", ...); edges connect to the first copy.
- * @param {Object<string, string[]>} folders - Mapping of folder names to child IDs
+ * REPORT_CLASS node. A report listed in several groups gets one copy per
+ * group ("id", "id(1)", ...); edges connect to the first copy.
+ * @param {Object<string, string[]>} node_groups - Mapping of group names to child IDs
  * @param {Array<[string, string]>} direct_node_connections - Array of [source, target] edge pairs
  * @param {string[]} extraIds - Other node IDs to create even without edges (e.g. from the layout)
  * @returns {Object[]} Cytoscape elements array
  */
-export function buildGraph(folders = {}, direct_node_connections = [], extraIds = []) {
+export function buildGraph(node_groups = {}, direct_node_connections = [], extraIds = []) {
   const elements = [];
   const takenIds = new Set();
 
-  // IDs of reports that are not necessarily in a folder
+  // IDs of reports that are not necessarily in a group
   const looseIds = new Set([...direct_node_connections.flat(), ...extraIds]);
-  for (const children of Object.values(folders)) {
+  for (const children of Object.values(node_groups)) {
     for (const id of children) takenIds.add(id);
   }
   for (const id of looseIds) takenIds.add(id);
@@ -219,11 +219,11 @@ export function buildGraph(folders = {}, direct_node_connections = [], extraIds 
     return cleaned[0].toLowerCase() + cleaned.slice(1);
   };
 
-  // originalId -> [{ actualId, folderLabel }, ...] (one entry per folder the report appears in)
+  // originalId -> [{ actualId, folderLabel }, ...] (one entry per group the report appears in)
   const instances = new Map();
   const folderIdByLabel = new Map();
 
-  for (const [folderLabel, children] of Object.entries(folders)) {
+  for (const [folderLabel, children] of Object.entries(node_groups)) {
     const folderId = uniqueId(makeFolderId(folderLabel), takenIds);
     folderIdByLabel.set(folderLabel, folderId);
     elements.push({ data: { id: folderId, class: FOLDER_CLASS, label: folderLabel } });
@@ -293,9 +293,9 @@ export function buildGraph(folders = {}, direct_node_connections = [], extraIds 
 
 /**
  * Elements to draw for the current toggles: node label with or without
- * the group, and folders shown or hidden.
+ * the group, and groups shown or hidden.
  * @param {Object[]} allElements - Output of buildGraph
- * @param {boolean} showFolders - Keep the folder (compartment) nodes
+ * @param {boolean} showFolders - Keep the group (compartment) nodes
  * @param {boolean} showGroupInLabel - Label reports "id (Group)" instead of "id"
  * @returns {Object[]} Fresh element copies, safe to hand to a new Cytoscape instance
  */
@@ -408,7 +408,7 @@ function infoSections(info) {
 
 /**
  * The elements to hide for the reports unchecked in "Node to Display": those reports
- * (Cytoscape then hides their edges too) and the folders left with no visible report.
+ * (Cytoscape then hides their edges too) and the groups left with no visible report.
  * @param {cytoscape.Core} cy - Cytoscape instance
  * @param {Set<string>} hiddenIds - IDs of the reports to hide
  * @returns {cytoscape.Collection} Elements to hide
@@ -537,7 +537,7 @@ export function makeStyles({
       },
     },
     {
-      // Only report nodes carry size data; folders size to their children
+      // Only report nodes carry size data; groups size to their children
       selector: 'node[nodeWidth][nodeHeight]',
       style: {
         width: 'data(nodeWidth)',
@@ -835,12 +835,12 @@ export function NodeSearch({
 /**
  * Factory function that creates a React Graph component.
  * Initializes Cytoscape instance, manages graph state, and handles node selection.
- * @param {Object<string, string[]>} folders - Folder compartments mapping
+ * @param {Object<string, string[]>} node_groups - Group (group box) names mapped to their report names
  * @param {Array<[string, string]>} direct_node_connections - Edge definitions ([source, target] pairs)
  * @param {string[][]} [layout] - Layout grid (one row per layer). Optional: leave it out,
- *   e.g. create_graph(folders, direct_node_connections, options), to build it from the folders
+ *   e.g. create_graph(node_groups, direct_node_connections, options), to build it from the groups
  * @param {Object} options - Layout rendering options (startX, startY, offsetX, offsetY, base,
- *   layoutColumns = reports per row when the layout is built from the folders)
+ *   layoutColumns = reports per row when the layout is built from the groups)
  *   plus the colors ("#rrggbb"): selectedColor (Node to Display), parentsColor and
  *   childrenColor (Track node 1), track2ParentsColor and track2ChildrenColor (Track node 2;
  *   commonColor = elements on both chains, default rgb(239, 108, 0)), topControlsFontSize (text size of the top controls row, e.g. '16px')
@@ -848,12 +848,12 @@ export function NodeSearch({
  * @returns {React.FC} Graph component
  */
 export function create_graph(
-  folders = {},
+  node_groups = {},
   direct_node_connections = [],
   layout = null,
   options = {}
 ) {
-  // The layout can be left out: create_graph(folders, direct_node_connections, options)
+  // The layout can be left out: create_graph(node_groups, direct_node_connections, options)
   if (layout && !Array.isArray(layout)) {
     options = layout;
     layout = null;
@@ -887,9 +887,9 @@ export function create_graph(
     '--rbg-parents-color': track2ParentsColor,
     '--rbg-children-color': track2ChildrenColor,
   };
-  // Nodes listed only in the layout (no folder, no edges) are still shown
-  const ALL_ELEMENTS = buildGraph(folders, direct_node_connections, hasLayout ? layout.flat() : []);
-  // No layout given: one block of rows per folder
+  // Nodes listed only in the layout (no group, no edges) are still shown
+  const ALL_ELEMENTS = buildGraph(node_groups, direct_node_connections, hasLayout ? layout.flat() : []);
+  // No layout given: one block of rows per group
   const LAYOUT = hasLayout
     ? uniquifyLayout(layout)
     : layoutFromFolders(ALL_ELEMENTS, layoutColumns);

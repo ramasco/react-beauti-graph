@@ -1,11 +1,11 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
-import './react-beauti-graph.css';
-import App from './App';
+import '../src/react-beauti-graph.css';
+import DemoApp from './DemoApp';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <App />
+    <DemoApp />
   </StrictMode>
 );
