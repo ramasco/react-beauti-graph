@@ -10,7 +10,20 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import cytoscape from 'cytoscape';
 
-const BLUE = '#0066cc';
+// Base color of the graph: node text, node borders, edges and arrows (blue)
+const GRAPH_COLOR = '#0066cc';
+// Default color of the node picked in "Select a node"; override with options.selectedColor
+export const DEFAULT_SELECTED_COLOR = '#e91e63'; 
+
+// Default "Track node" chain colors; override with options.parentsColor / options.childrenColor
+export const DEFAULT_PARENTS_COLOR = '#2e7d32'; 
+export const DEFAULT_CHILDREN_COLOR = '#7b1fa2';
+// Reports per row when the layout is built from the folders; override with options.layoutColumns
+export const DEFAULT_LAYOUT_COLUMNS = 10;
+// Default text size of the top controls row ("Select a node", "Track node", ...); override with options.topControlsFontSize
+export const DEFAULT_TOP_CONTROLS_FONT_SIZE = '22px';
+// Default text size of the right details panel (double click on a node); override with options.rightDisplayFontSize
+export const DEFAULT_RIGHT_DISPLAY_FONT_SIZE = '18px';
 const NODE_MIN_WIDTH = 200;
 const NODE_HEIGHT = 60;
 const CHAR_WIDTH = 9;
@@ -133,21 +146,47 @@ export function uniqueId(base, taken) {
 }
 
 /**
+ * Builds a layout from the folders, used when no layout is given.
+ * Each folder starts a new row and fills rows of at most `columns` reports
+ * (folder order, then report order); reports in no folder come last.
+ * Copies of a report in several folders ("id(1)", ...) sit in their own folder.
+ * @param {Object[]} elements - Cytoscape elements from buildGraph
+ * @param {number} [columns] - Maximum reports per row
+ * @returns {string[][]} Layout rows of node IDs
+ */
+export function layoutFromFolders(elements, columns = DEFAULT_LAYOUT_COLUMNS) {
+  const perRow = Math.max(1, Math.floor(columns) || 1);
+  const reports = elements.filter((e) => e.data.class === 'macromolecule');
+  const groups = elements
+    .filter((e) => e.data.class === 'compartment')
+    .map((folder) => reports.filter((r) => r.data.parent === folder.data.id));
+  groups.push(reports.filter((r) => !r.data.parent));
+
+  const rows = [];
+  for (const group of groups) {
+    for (let i = 0; i < group.length; i += perRow) {
+      rows.push(group.slice(i, i + perRow).map((r) => r.data.id));
+    }
+  }
+  return rows;
+}
+
+/**
  * Builds the Cytoscape elements from folders, edges and extra node IDs.
  * Folders become compound nodes ("compartment"); every report becomes a
  * "macromolecule" node. A report listed in several folders gets one copy per
  * folder ("id", "id(1)", ...); edges connect to the first copy.
  * @param {Object<string, string[]>} folders - Mapping of folder names to child IDs
- * @param {Array<[string, string]>} nodes - Array of [source, target] edge pairs
+ * @param {Array<[string, string]>} direct_node_connections - Array of [source, target] edge pairs
  * @param {string[]} extraIds - Other node IDs to create even without edges (e.g. from the layout)
  * @returns {Object[]} Cytoscape elements array
  */
-export function buildGraph(folders = {}, nodes = [], extraIds = []) {
+export function buildGraph(folders = {}, direct_node_connections = [], extraIds = []) {
   const elements = [];
   const takenIds = new Set();
 
   // IDs of reports that are not necessarily in a folder
-  const looseIds = new Set([...nodes.flat(), ...extraIds]);
+  const looseIds = new Set([...direct_node_connections.flat(), ...extraIds]);
   for (const children of Object.values(folders)) {
     for (const id of children) takenIds.add(id);
   }
@@ -209,7 +248,7 @@ export function buildGraph(folders = {}, nodes = [], extraIds = []) {
   const pairKey = (source, target) => `${source}->${target}`;
   const edgeByPair = new Map();
 
-  nodes.forEach(([rawSource, rawTarget], index) => {
+  direct_node_connections.forEach(([rawSource, rawTarget], index) => {
     const source = resolve(rawSource);
     const target = resolve(rawTarget);
 
@@ -287,6 +326,39 @@ export function getNodeInfo(node) {
 }
 
 /**
+ * Follows the edges from a node to collect its whole chain of parents
+ * (nodes pointing to it, their parents, ...) or children. A two-way edge
+ * counts in both directions, as in getNodeInfo.
+ * @param {cytoscape.NodeSingular} start - The tracked node
+ * @param {'parents'|'children'} direction - Which way to follow the edges
+ * @returns {cytoscape.Collection} The start node plus every node and edge on the chain
+ */
+export function getTrackedElements(start, direction) {
+  const upstream = direction === 'parents';
+  let trail = start.collection();
+  const seen = new Set([start.id()]);
+  const queue = [start];
+
+  while (queue.length > 0) {
+    const node = queue.shift();
+    node.connectedEdges().forEach((edge) => {
+      const twoWay = edge.hasClass('bidirectional');
+      let next = null;
+      if (edge.target().same(node) && (upstream || twoWay)) next = edge.source();
+      if (edge.source().same(node) && (!upstream || twoWay)) next = edge.target();
+      if (!next) return;
+      trail = trail.union(edge);
+      if (!seen.has(next.id())) {
+        seen.add(next.id());
+        queue.push(next);
+      }
+    });
+  }
+
+  return trail.union(start.cy().collection([...seen].map((id) => start.cy().getElementById(id))));
+}
+
+/**
  * Formats node details as plain text for the clipboard, matching the side panel:
  * the group and the parent/child lists appear only when not empty.
  * @param {ReturnType<typeof getNodeInfo>} info - Output of getNodeInfo
@@ -306,17 +378,49 @@ export function formatNodeInfo(info) {
   return lines.join('\n');
 }
 
-/** Cytoscape stylesheet; later rules override earlier ones */
-export const STYLES = [
+/**
+ * Mixes a "#rrggbb" color with white (used as the tracked node's fill).
+ * Other color formats fall back to white.
+ * @param {string} color - Hex color
+ * @param {number} [amount=0.88] - Share of white, 0..1
+ * @returns {string} Hex color
+ */
+export function lightTint(color, amount = 0.88) {
+  const m = /^#([0-9a-f]{6})$/i.exec(color);
+  if (!m) return '#ffffff';
+  const value = parseInt(m[1], 16);
+  return (
+    '#' +
+    [16, 8, 0]
+      .map((shift) => {
+        const channel = (value >> shift) & 0xff;
+        return Math.round(channel + (255 - channel) * amount).toString(16).padStart(2, '0');
+      })
+      .join('')
+  );
+}
+
+/**
+ * Cytoscape stylesheet; later rules override earlier ones.
+ * @param {{selectedColor?: string, parentsColor?: string, childrenColor?: string}} [colors]
+ *   Selected node color and Track node chain colors
+ * @returns {Object[]} Stylesheet
+ */
+export function makeStyles({
+  selectedColor = DEFAULT_SELECTED_COLOR,
+  parentsColor = DEFAULT_PARENTS_COLOR,
+  childrenColor = DEFAULT_CHILDREN_COLOR,
+} = {}) {
+  return [
   {
     selector: 'node',
     style: {
       'background-color': '#fff',
       label: 'data(graphLabel)',
       shape: 'rectangle',
-      color: BLUE,
+      color: GRAPH_COLOR,
       'border-width': 2,
-      'border-color': BLUE,
+      'border-color': GRAPH_COLOR,
       'text-valign': 'center',
       'text-halign': 'center',
     },
@@ -345,7 +449,7 @@ export const STYLES = [
   {
     selector: '.selected',
     style: {
-      'overlay-color': '#e53935',
+      'overlay-color': selectedColor,
       'overlay-opacity': 0.35,
       'overlay-padding': 8,
     },
@@ -353,11 +457,11 @@ export const STYLES = [
   {
     selector: 'edge',
     style: {
-      'line-color': BLUE,
+      'line-color': GRAPH_COLOR,
       width: 2,
       'curve-style': 'bezier',
       'target-arrow-shape': 'vee',
-      'target-arrow-color': BLUE,
+      'target-arrow-color': GRAPH_COLOR,
       'target-arrow-fill': 'filled',
       'arrow-scale': 2,
     },
@@ -376,11 +480,45 @@ export const STYLES = [
     selector: 'edge.bidirectional',
     style: {
       'source-arrow-shape': 'vee',
-      'source-arrow-color': BLUE,
+      'source-arrow-color': GRAPH_COLOR,
       'source-arrow-fill': 'filled',
     },
   },
-];
+  {
+    // Track node: everything off the traced chain is dimmed
+    selector: '.faded',
+    style: { opacity: 0.15 },
+  },
+  ...[
+    ['track-parents', parentsColor],
+    ['track-children', childrenColor],
+  ].flatMap(([cls, color]) => [
+    {
+      selector: `edge.${cls}`,
+      style: {
+        'line-color': color,
+        'target-arrow-color': color,
+        'source-arrow-color': color,
+        width: 4,
+      },
+    },
+    {
+      selector: `node.${cls}`,
+      style: { 'border-color': color, 'border-width': 3 },
+    },
+    {
+      selector: `node.${cls}.track-root`,
+      style: { 'border-width': 5, 'background-color': lightTint(color) },
+    },
+  ]),
+  ];
+}
+
+/** Default Cytoscape stylesheet (default track colors) */
+export const STYLES = makeStyles();
+
+// Default label of the first entry of the node search list (selects no node)
+const NO_NODE_LABEL = 'ALL';
 
 /**
  * Searchable node picker: typing any part of a name (case-insensitive) filters the list.
@@ -389,8 +527,9 @@ export const STYLES = [
  * @param {{id: string, label: string}[]} options - Nodes to choose from
  * @param {string} selectedId - Currently selected node id ('' for none)
  * @param {(id: string) => void} onSelect - Called with the chosen node id
+ * @param {string} [noneLabel] - Label of the first entry, which selects no node
  */
-export function NodeSearch({ id, options, selectedId, onSelect }) {
+export function NodeSearch({ id, options, selectedId, onSelect, noneLabel = NO_NODE_LABEL }) {
   const [query, setQuery] = useState(''); // text shown in the box
   const [filter, setFilter] = useState(''); // text typed since the list opened
   const [open, setOpen] = useState(false);
@@ -406,9 +545,15 @@ export function NodeSearch({ id, options, selectedId, onSelect }) {
   }, [selectedLabel]);
 
   const needle = filter.trim().toLowerCase();
-  const matches = needle
+  const nodeMatches = needle
     ? options.filter((o) => o.label.toLowerCase().includes(needle))
     : options;
+  // The "no node" entry (ALL by default) sits at the top of the list
+  const noneOption = { id: '', label: noneLabel };
+  const matches =
+    !needle || noneLabel.toLowerCase().includes(needle)
+      ? [noneOption, ...nodeMatches]
+      : nodeMatches;
 
   const openList = () => {
     setFilter('');
@@ -424,7 +569,7 @@ export function NodeSearch({ id, options, selectedId, onSelect }) {
 
   const choose = (opt) => {
     onSelect(opt.id);
-    setQuery(opt.label);
+    setQuery(opt.id ? opt.label : ''); // the "no node" entry leaves the box empty
     setFilter('');
     setOpen(false);
   };
@@ -505,8 +650,11 @@ export function NodeSearch({ id, options, selectedId, onSelect }) {
           ) : (
             matches.map((opt, i) => (
               <li
-                key={opt.id}
-                className={i === active ? 'active' : undefined}
+                key={opt.id || '__all__'}
+                className={
+                  [i === active && 'active', !opt.id && 'node-search-all'].filter(Boolean).join(' ') ||
+                  undefined
+                }
                 onMouseDown={(e) => {
                   e.preventDefault(); // keep focus in the input
                   choose(opt);
@@ -527,20 +675,50 @@ export function NodeSearch({ id, options, selectedId, onSelect }) {
  * Factory function that creates a React Graph component.
  * Initializes Cytoscape instance, manages graph state, and handles node selection.
  * @param {Object<string, string[]>} folders - Folder compartments mapping
- * @param {Array<[string, string]>} nodes - Edge definitions
- * @param {string[][]} layout - Layout grid specification
- * @param {Object} options - Layout rendering options
+ * @param {Array<[string, string]>} direct_node_connections - Edge definitions ([source, target] pairs)
+ * @param {string[][]} [layout] - Layout grid (one row per layer). Optional: leave it out,
+ *   e.g. create_graph(folders, direct_node_connections, options), to build it from the folders
+ * @param {Object} options - Layout rendering options (startX, startY, offsetX, offsetY, base,
+ *   layoutColumns = reports per row when the layout is built from the folders)
+ *   plus the colors ("#rrggbb"): selectedColor (Select a node), parentsColor and
+ *   childrenColor (Track node), topControlsFontSize (text size of the top controls row, e.g. '16px')
+ *   and rightDisplayFontSize (text size of the right details panel)
  * @returns {React.FC} Graph component
  */
 export function create_graph(
   folders = {},
-  nodes = [],
-  layout = [],
+  direct_node_connections = [],
+  layout = null,
   options = {}
 ) {
-  const UNIQUE_LAYOUT = uniquifyLayout(layout);
+  // The layout can be left out: create_graph(folders, direct_node_connections, options)
+  if (layout && !Array.isArray(layout)) {
+    options = layout;
+    layout = null;
+  }
+  const hasLayout = Array.isArray(layout) && layout.length > 0;
+  const {
+    selectedColor = DEFAULT_SELECTED_COLOR,
+    parentsColor = DEFAULT_PARENTS_COLOR,
+    childrenColor = DEFAULT_CHILDREN_COLOR,
+    topControlsFontSize = DEFAULT_TOP_CONTROLS_FONT_SIZE,
+    rightDisplayFontSize = DEFAULT_RIGHT_DISPLAY_FONT_SIZE,
+    layoutColumns = DEFAULT_LAYOUT_COLUMNS,
+  } = options;
+  const GRAPH_STYLES = makeStyles({ selectedColor, parentsColor, childrenColor });
+  // Same colors for the Parents/Children switch (read by react-beauti-graph.css)
+  const COLOR_VARS = {
+    '--rbg-parents-color': parentsColor,
+    '--rbg-children-color': childrenColor,
+    '--rbg-top-controls-font-size': topControlsFontSize,
+    '--rbg-right-display-font-size': rightDisplayFontSize,
+  };
   // Nodes listed only in the layout (no folder, no edges) are still shown
-  const ALL_ELEMENTS = buildGraph(folders, nodes, layout.flat());
+  const ALL_ELEMENTS = buildGraph(folders, direct_node_connections, hasLayout ? layout.flat() : []);
+  // No layout given: one block of rows per folder
+  const UNIQUE_LAYOUT = hasLayout
+    ? uniquifyLayout(layout)
+    : layoutFromFolders(ALL_ELEMENTS, layoutColumns);
 
   function Graph() {
     const containerRef = useRef(null);
@@ -548,6 +726,9 @@ export function create_graph(
     const uid = useId(); // unique ids, so several graphs can share a page
     const [nodeOptions, setNodeOptions] = useState([]);
     const [selectedId, setSelectedId] = useState('');
+    const [fitRequest, setFitRequest] = useState(0); // bumped to zoom out to the full graph
+    const [trackedId, setTrackedId] = useState(''); // '' = No tracking
+    const [trackDirection, setTrackDirection] = useState('parents'); // 'parents' | 'children'
     const [showFolders, setShowFolders] = useState(true);
     const [showGroupInLabel, setShowGroupInLabel] = useState(true);
     const [contextMenu, setContextMenu] = useState(null); // { x, y, copyText }
@@ -561,7 +742,7 @@ export function create_graph(
       const cy = cytoscape({
         container: containerEl,
         elements: getVisibleElements(ALL_ELEMENTS, showFolders, showGroupInLabel),
-        style: STYLES,
+        style: GRAPH_STYLES,
         layout: { name: 'preset', fit: false },
       });
 
@@ -646,7 +827,25 @@ export function create_graph(
       setNodeInfo(getNodeInfo(node));
     };
 
-    // Highlight the selected node and center on it
+    // ALL (or clearing the search): no selection, no details panel, whole graph in view
+    const showAll = () => {
+      setSelectedId('');
+      setNodeInfo(null);
+      setFitRequest((n) => n + 1);
+    };
+
+    // Zoom out to the full graph. Runs after the re-render, so the closed
+    // details panel has already given its width back to the graph.
+    useEffect(() => {
+      const cy = cyRef.current;
+      if (!fitRequest || !cy) return;
+      cy.stop(); // cancel a running zoom to a node
+      cy.resize();
+      cy.animate({ fit: { eles: cy.elements(), padding: 30 } }, { duration: 400 });
+    }, [fitRequest]);
+
+    // Highlight the selected node and center on it.
+    // Also re-applied when a toggle rebuilds the graph, so the selection is kept.
     useEffect(() => {
       const cy = cyRef.current;
       if (!cy) return;
@@ -659,7 +858,26 @@ export function create_graph(
         node.addClass('selected');
         cy.animate({ center: { eles: node }, zoom: 1.8 }, { duration: 400 });
       }
-    }, [selectedId]);
+    }, [selectedId, showFolders, showGroupInLabel]);
+
+    // Track node: highlight the chain of parents/children, dim the rest.
+    // Also re-applied when a toggle rebuilds the graph.
+    useEffect(() => {
+      const cy = cyRef.current;
+      if (!cy) return;
+
+      cy.elements().removeClass('faded track-parents track-children track-root');
+      if (!trackedId) return;
+
+      const root = cy.getElementById(trackedId);
+      if (root.empty()) return;
+
+      const trail = getTrackedElements(root, trackDirection);
+      trail.addClass(`track-${trackDirection}`);
+      root.addClass('track-root');
+      // Folders stay visible; only reports and edges off the chain are dimmed
+      cy.elements().not(trail).not('node:parent').addClass('faded');
+    }, [trackedId, trackDirection, showFolders, showGroupInLabel]);
 
     // Opening/closing the side panel changes the graph width
     const panelOpen = nodeInfo !== null;
@@ -675,16 +893,19 @@ export function create_graph(
     }, []);
 
     return (
-      <div className="rbg-graph">
+      <div className="rbg-graph" style={COLOR_VARS}>
         <div className="controls">
-          <label htmlFor={`${uid}-search`}>Select a node:</label>
-          <NodeSearch
-            id={`${uid}-search`}
-            options={nodeOptions}
-            selectedId={selectedId}
-            // Picking a node also opens its details panel, like a double click
-            onSelect={(id) => (id ? showNode(id) : setSelectedId(''))}
-          />
+          {/* Each label stays next to its box when the row wraps */}
+          <span className="control-group">
+            <label htmlFor={`${uid}-search`}>Select a node:</label>
+            <NodeSearch
+              id={`${uid}-search`}
+              options={nodeOptions}
+              selectedId={selectedId}
+              // Picking a node also opens its details panel, like a double click
+              onSelect={(id) => (id ? showNode(id) : showAll())}
+            />
+          </span>
           <label>
             <input
               type="checkbox"
@@ -701,6 +922,32 @@ export function create_graph(
             />
             Add Group to Node Name
           </label>
+          <span className="control-group">
+            <label htmlFor={`${uid}-track`}>Track node:</label>
+            <NodeSearch
+              id={`${uid}-track`}
+              options={nodeOptions}
+              selectedId={trackedId}
+              onSelect={setTrackedId}
+              noneLabel="No tracking"
+            />
+            {/* Nothing to track on "No tracking", so the switch is disabled */}
+            <span className={trackedId ? 'track-switch' : 'track-switch disabled'}>
+              <span className={trackDirection === 'parents' ? 'parents on' : 'parents'}>Parents</span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={trackDirection === 'children'}
+                aria-label="Track children instead of parents"
+                className="switch"
+                disabled={!trackedId}
+                onClick={() => setTrackDirection((d) => (d === 'parents' ? 'children' : 'parents'))}
+              >
+                <span className="switch-knob" />
+              </button>
+              <span className={trackDirection === 'children' ? 'children on' : 'children'}>Children</span>
+            </span>
+          </span>
           <span className="help">
             <button type="button" className="help-icon" aria-label="Help" aria-describedby={`${uid}-help`}>
               ?

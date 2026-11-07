@@ -9,14 +9,18 @@ import {
   formatNodeInfo,
   getNodeInfo,
   getNodeSize,
+  getTrackedElements,
+  lightTint,
+  makeStyles,
   getVisibleElements,
+  layoutFromFolders,
   uniqueId,
   uniquifyLayout,
 } from '../graphFactory';
 
 /** Headless Cytoscape instance built the same way the component builds it */
-function makeCy(folders, nodes, extraIds = [], { showFolders = true, showGroupInLabel = true } = {}) {
-  const elements = getVisibleElements(buildGraph(folders, nodes, extraIds), showFolders, showGroupInLabel);
+function makeCy(folders, direct_node_connections, extraIds = [], { showFolders = true, showGroupInLabel = true } = {}) {
+  const elements = getVisibleElements(buildGraph(folders, direct_node_connections, extraIds), showFolders, showGroupInLabel);
   return cytoscape({ headless: true, styleEnabled: true, elements, style: STYLES });
 }
 
@@ -291,9 +295,11 @@ describe('applyLayout', () => {
   });
 
   it('places a folder copy "x(1)" in its layout cell', () => {
+    const info = vi.spyOn(console, 'info').mockImplementation(() => {});
     const cy = makeCy({ A: ['x'], B: ['x'] }, []);
     applyLayout(cy, uniquifyLayout([['x', 'x']]), { offsetX: 100, offsetY: 100 });
     expect(cy.getElementById('x(1)').position()).toEqual({ x: 200, y: 100 });
+    expect(info).toHaveBeenCalledWith('layout: duplicate id "x" — renamed to "x(1)"');
   });
 
   it('warns about and skips unknown ids', () => {
@@ -301,6 +307,31 @@ describe('applyLayout', () => {
     applyLayout(cy, [['missing', 'a']], { offsetX: 100, offsetY: 100 });
     expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('"missing" not found'));
     expect(cy.getElementById('a').position()).toEqual({ x: 200, y: 100 });
+  });
+});
+
+describe('layoutFromFolders (no layout given)', () => {
+  it('gives each folder its own rows, then the reports in no folder', () => {
+    const elements = buildGraph({ Sales: ['a', 'b'], Finance: ['c'] }, [['c', 'loose']]);
+    expect(layoutFromFolders(elements)).toEqual([['a', 'b'], ['c'], ['loose']]);
+  });
+
+  it('wraps a folder over several rows', () => {
+    const elements = buildGraph({ A: ['a', 'b', 'c', 'd', 'e'], B: ['f'] });
+    expect(layoutFromFolders(elements, 2)).toEqual([['a', 'b'], ['c', 'd'], ['e'], ['f']]);
+  });
+
+  it('places the copy of a report in each of its folders', () => {
+    const elements = buildGraph({ A: ['x', 'y'], B: ['x'] });
+    expect(layoutFromFolders(elements)).toEqual([['x', 'y'], ['x(1)']]);
+  });
+
+  it('places every report without overlaps', () => {
+    const cy = makeCy({ A: ['a', 'b', 'c'], B: ['a', 'd'] }, [['d', 'e']]);
+    applyLayout(cy, layoutFromFolders(buildGraph({ A: ['a', 'b', 'c'], B: ['a', 'd'] }, [['d', 'e']]), 2));
+    const spots = cy.nodes(REPORT_NODE).map((n) => `${n.position('x')},${n.position('y')}`);
+    expect(spots).toHaveLength(6);
+    expect(new Set(spots).size).toBe(6);
   });
 });
 
@@ -326,5 +357,72 @@ describe('STYLES', () => {
 
   it('sizes report boxes from their data', () => {
     expect(cy.getElementById('a').style('width')).toBe(`${getNodeSize('a').width}px`);
+  });
+});
+
+describe('getTrackedElements', () => {
+  // a -> b -> c -> d, x -> c, and a two-way edge c <-> y
+  const EDGES = [['a', 'b'], ['b', 'c'], ['c', 'd'], ['x', 'c'], ['c', 'y'], ['y', 'c']];
+  const ids = (coll, sel) => coll.filter(sel).map((e) => e.id()).sort();
+
+  it('collects every parent up the chain, with their edges', () => {
+    const cy = makeCy({}, EDGES);
+    const trail = getTrackedElements(cy.getElementById('c'), 'parents');
+    expect(ids(trail, 'node')).toEqual(['a', 'b', 'c', 'x', 'y']);
+    expect(trail.edges().length).toBe(4); // a-b, b-c, x-c, c<->y
+  });
+
+  it('collects every child down the chain', () => {
+    const cy = makeCy({}, EDGES);
+    const trail = getTrackedElements(cy.getElementById('b'), 'children');
+    expect(ids(trail, 'node')).toEqual(['b', 'c', 'd', 'y']);
+  });
+
+  it('returns only the node itself when it has no parents', () => {
+    const cy = makeCy({}, EDGES);
+    const trail = getTrackedElements(cy.getElementById('a'), 'parents');
+    expect(trail.map((e) => e.id())).toEqual(['a']);
+  });
+
+  it('stops on cycles', () => {
+    const cy = makeCy({}, [['p', 'q'], ['q', 'r'], ['r', 'p']]);
+    const trail = getTrackedElements(cy.getElementById('p'), 'children');
+    expect(ids(trail, 'node')).toEqual(['p', 'q', 'r']);
+    expect(trail.edges().length).toBe(3);
+  });
+});
+
+describe('track colors', () => {
+  const styleOf = (styles, selector) => styles.find((s) => s.selector === selector)?.style;
+
+  it('uses green for parents and purple for children by default', () => {
+    const styles = makeStyles();
+    expect(styleOf(styles, 'edge.track-parents')['line-color']).toBe('#2e7d32');
+    expect(styleOf(styles, 'edge.track-children')['line-color']).toBe('#7b1fa2');
+  });
+
+  it('takes the colors as parameters', () => {
+    const styles = makeStyles({ parentsColor: '#ff0000', childrenColor: '#0000ff' });
+    expect(styleOf(styles, 'edge.track-parents')['line-color']).toBe('#ff0000');
+    expect(styleOf(styles, 'node.track-children')['border-color']).toBe('#0000ff');
+    expect(styleOf(styles, 'node.track-parents.track-root')['background-color']).toBe(lightTint('#ff0000'));
+  });
+
+  it('lightTint mixes a color with white', () => {
+    expect(lightTint('#000000', 0.5)).toBe('#808080');
+    expect(lightTint('#ffffff')).toBe('#ffffff');
+    expect(lightTint('red')).toBe('#ffffff'); // non-hex falls back to white
+  });
+});
+
+describe('selected node color', () => {
+  const overlayOf = (styles) => styles.find((s) => s.selector === '.selected').style['overlay-color'];
+
+  it('is pink by default', () => {
+    expect(overlayOf(makeStyles())).toBe('#e91e63');
+  });
+
+  it('takes the color as a parameter', () => {
+    expect(overlayOf(makeStyles({ selectedColor: '#123456' }))).toBe('#123456');
   });
 });

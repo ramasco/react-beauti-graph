@@ -33,10 +33,34 @@ describe('NodeSearch', () => {
     expect(listItems()).toEqual([]);
   });
 
-  it('opens the full list when clicked', async () => {
+  it('opens the full list, with ALL on top, when clicked', async () => {
     const { user, input, listItems } = setup();
     await user.click(input);
-    expect(listItems()).toEqual(OPTIONS.map((o) => o.label));
+    expect(listItems()).toEqual(['ALL', ...OPTIONS.map((o) => o.label)]);
+  });
+
+  it('choosing ALL is the same as selecting no node', async () => {
+    const { user, input, onSelect, listItems } = setup({ selectedId: 'r001' });
+    await user.click(input);
+    await user.click(screen.getByText('ALL'));
+    expect(onSelect).toHaveBeenCalledWith('');
+    expect(input.value).toBe('');
+    expect(listItems()).toEqual([]);
+  });
+
+  it('ALL stays in the list when typing part of "all"', async () => {
+    const { user, input, listItems } = setup();
+    await user.type(input, 'al');
+    expect(listItems()).toEqual(['ALL', 'r001 (Sales)', 'r002 (Sales)', 'ralone']);
+  });
+
+  it('can rename the "no node" entry (e.g. No tracking)', async () => {
+    const { user, input, onSelect, listItems } = setup({ selectedId: 'r001', noneLabel: 'No tracking' });
+    await user.click(input);
+    expect(listItems()[0]).toBe('No tracking');
+    expect(listItems()).not.toContain('ALL');
+    await user.click(screen.getByText('No tracking'));
+    expect(onSelect).toHaveBeenCalledWith('');
   });
 
   it('filters by any part of the name, ignoring case', async () => {

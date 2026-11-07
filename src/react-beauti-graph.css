@@ -8,21 +8,34 @@
   min-height: 0;
 }
 
+/* Top controls row text size comes from create_graph options (topControlsFontSize), set as a CSS variable.
+   Spacing is in em, so it grows with the text size; the row wraps when it does not fit. */
 .rbg-graph .controls {
-  padding: 10px 14px;
+  font-size: var(--rbg-top-controls-font-size, 14px);
+  padding: 0.7em 1em;
   background: #fafafa;
   border-bottom: 1px solid #ddd;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 0.5em 0.8em;
   flex-shrink: 0;
   position: relative;
   z-index: 10;
 }
 
+/* A label with its box (and the Track node switch): kept on one line */
+.rbg-graph .control-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em 0.8em;
+  white-space: nowrap;
+}
+
 .rbg-graph .controls label {
-  font-size: 14px;
+  font-size: var(--rbg-top-controls-font-size, 14px);
   color: #0066cc;
+  white-space: nowrap;
 }
 
 .rbg-graph .help {
@@ -56,7 +69,7 @@
   border-radius: 4px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   color: #0066cc;
-  font-size: 14px;
+  font-size: var(--rbg-top-controls-font-size, 14px);
   line-height: 1.5;
   z-index: 1000;
 }
@@ -71,10 +84,72 @@
   position: relative;
 }
 
+/* Track node: Parents [switch] Children */
+.rbg-graph .track-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45em;
+  font-size: var(--rbg-top-controls-font-size, 14px);
+  color: #999;
+  white-space: nowrap;
+}
+
+/* Colors come from create_graph options (parentsColor, childrenColor), set as CSS variables */
+.rbg-graph .track-switch .on {
+  font-weight: bold;
+}
+
+.rbg-graph .track-switch .parents.on {
+  color: var(--rbg-parents-color, #2e7d32);
+}
+
+.rbg-graph .track-switch .children.on {
+  color: var(--rbg-children-color, #7b1fa2);
+}
+
+.rbg-graph .switch {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 10px;
+  background: var(--rbg-parents-color, #2e7d32);
+  cursor: pointer;
+}
+
+.rbg-graph .switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: left 0.15s;
+}
+
+.rbg-graph .switch[aria-checked='true'] {
+  background: var(--rbg-children-color, #7b1fa2);
+}
+
+/* Track node is "No tracking": nothing to track, the switch is greyed out */
+.rbg-graph .track-switch.disabled {
+  opacity: 0.4;
+}
+
+.rbg-graph .switch:disabled {
+  cursor: not-allowed;
+}
+
+.rbg-graph .switch[aria-checked='true'] .switch-knob {
+  left: 18px;
+}
+
 .rbg-graph .node-search input {
-  padding: 6px 28px 6px 10px;
-  font-size: 14px;
-  min-width: 260px;
+  padding: 0.4em 2em 0.4em 0.7em;
+  font-size: var(--rbg-top-controls-font-size, 14px);
+  min-width: 18.5em;
   color: #0066cc;
   font-weight: bold;
   border: 1px solid #ccc;
@@ -119,7 +194,7 @@
 
 .rbg-graph .node-search-list li {
   padding: 5px 10px;
-  font-size: 14px;
+  font-size: var(--rbg-top-controls-font-size, 14px);
   color: #0066cc;
   cursor: pointer;
 }
@@ -146,6 +221,7 @@
   background: #fff;
 }
 
+/* Right details panel text size comes from create_graph options (rightDisplayFontSize), set as a CSS variable */
 .rbg-graph .node-info-panel {
   width: 300px;
   flex-shrink: 0;
@@ -154,7 +230,7 @@
   border-left: 1px solid #ddd;
   background: #fafafa;
   color: #0066cc;
-  font-size: 14px;
+  font-size: var(--rbg-right-display-font-size, 14px);
 }
 
 .rbg-graph .node-info-header {
@@ -166,7 +242,7 @@
 
 .rbg-graph .node-info-header h2 {
   margin: 0 0 8px;
-  font-size: 14px;
+  font-size: var(--rbg-right-display-font-size, 14px);
   font-weight: normal;
   color: #0066cc;
   word-break: break-word;
@@ -175,7 +251,7 @@
 .rbg-graph .node-info-header button {
   border: none;
   background: none;
-  font-size: 14px;
+  font-size: var(--rbg-right-display-font-size, 14px);
   line-height: 1;
   color: #0066cc;
   cursor: pointer;
@@ -183,7 +259,7 @@
 
 .rbg-graph .node-info-panel h3 {
   margin: 16px 0 6px;
-  font-size: 14px;
+  font-size: var(--rbg-right-display-font-size, 14px);
   font-weight: bold;
   color: #0066cc;
 }
@@ -201,7 +277,7 @@
   border: none;
   background: none;
   text-align: left;
-  font-size: 14px;
+  font-size: var(--rbg-right-display-font-size, 14px);
   color: #0066cc;
   cursor: pointer;
 }
