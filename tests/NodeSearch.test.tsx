@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NodeSearch } from '../src/graphFactory';
+import type { NodeSearchProps } from '../src/graphFactory';
 
 const OPTIONS = [
   { id: 'r001', label: 'r001 (Sales)' },
@@ -12,17 +13,17 @@ const OPTIONS = [
 
 beforeAll(() => {
   // jsdom has no layout engine
-  Element.prototype.scrollIntoView = () => {};
+  Element.prototype.scrollIntoView = () => undefined;
 });
 
 afterEach(cleanup);
 
-function setup(props = {}) {
+function setup(props: Partial<NodeSearchProps> = {}) {
   const onSelect = vi.fn();
   const user = userEvent.setup();
   const utils = render(<NodeSearch options={OPTIONS} selectedId="" onSelect={onSelect} {...props} />);
-  const input = screen.getByRole('textbox');
-  const listItems = () => screen.queryAllByRole('listitem').map((li) => li.textContent);
+  const input = screen.getByRole<HTMLInputElement>('textbox');
+  const listItems = (): (string | null)[] => screen.queryAllByRole('option').map((li) => li.textContent);
   return { ...utils, onSelect, user, input, listItems };
 }
 
@@ -110,7 +111,7 @@ describe('NodeSearch', () => {
 
   it('shows the name of a node selected elsewhere (e.g. the side panel)', () => {
     const { rerender, input } = setup();
-    rerender(<NodeSearch options={OPTIONS} selectedId="ralone" onSelect={() => {}} />);
+    rerender(<NodeSearch options={OPTIONS} selectedId="ralone" onSelect={() => undefined} />);
     expect(input.value).toBe('ralone');
   });
 
@@ -130,10 +131,10 @@ describe('NodeSearch', () => {
   it('shows a checkbox next to each node (not ALL), on unless hidden', async () => {
     const { user, input } = setup({ hiddenIds: new Set(['r002']), onToggleVisible: vi.fn() });
     await user.click(input);
-    const boxes = screen.getAllByRole('checkbox');
+    const boxes = screen.getAllByRole<HTMLInputElement>('checkbox');
     expect(boxes).toHaveLength(OPTIONS.length);
     expect(boxes.map((b) => b.checked)).toEqual([true, false, true, true]);
-    expect(screen.getByLabelText('Show r002 (Sales)').closest('li').className).toContain('off');
+    expect(screen.getByLabelText('Show r002 (Sales)').closest('li')?.className).toContain('off');
   });
 
   it('clicking a checkbox toggles the node without picking it, and keeps the list open', async () => {

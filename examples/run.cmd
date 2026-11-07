@@ -1,6 +1,6 @@
 @echo off
-rem Starts the example app (examples/, separate from the library) and opens it in the browser.
-cd /d "%~dp0examples"
+rem Starts the example app and opens it in the browser.
+cd /d "%~dp0"
 if not exist node_modules (
   echo Installing the example's dependencies...
   call npm install || exit /b 1

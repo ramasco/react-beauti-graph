@@ -4,7 +4,12 @@ import './index.css';
 import 'react-beauti-graph/style.css';
 import DemoApp from './DemoApp';
 
-createRoot(document.getElementById('root')).render(
+const rootElement = document.getElementById('root');
+if (rootElement === null) {
+  throw new Error('index.html has no #root element');
+}
+
+createRoot(rootElement).render(
   <StrictMode>
     <DemoApp />
   </StrictMode>

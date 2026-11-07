@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import cytoscape from 'cytoscape';
+import type { ElementDefinition, StylesheetJson } from 'cytoscape';
+import type { Connections, GraphElement, NodeGroups, NodeRef } from '../src/graphFactory';
 import {
   REPORT_NODE,
   applyLayout,
@@ -21,14 +23,44 @@ import {
 } from '../src/graphFactory';
 
 /** Headless Cytoscape instance built the same way the component builds it */
-function makeCy(node_groups, direct_node_connections, extraIds = [], { showFolders = true, showGroupInLabel = true } = {}) {
-  const elements = getVisibleElements(buildGraph(node_groups, direct_node_connections, extraIds), showFolders, showGroupInLabel);
-  return cytoscape({ headless: true, styleEnabled: true, elements, style: makeStyles() });
+function makeCy(
+  node_groups: NodeGroups,
+  direct_node_connections: Connections,
+  extraIds: string[] = [],
+  { showFolders = true, showGroupInLabel = true } = {}
+): cytoscape.Core {
+  const elements = getVisibleElements(
+    buildGraph(node_groups, direct_node_connections, extraIds),
+    showFolders,
+    showGroupInLabel
+  );
+  return cytoscape({
+    headless: true,
+    styleEnabled: true,
+    elements: elements as ElementDefinition[],
+    style: makeStyles(),
+  });
 }
 
-const nodesOf = (elements) => elements.filter((e) => !e.data.source);
-const edgesOf = (elements) => elements.filter((e) => e.data.source);
-const byId = (elements, id) => elements.find((e) => e.data.id === id);
+const nodesOf = (elements: GraphElement[]): GraphElement[] => elements.filter((e) => !e.data.source);
+const edgesOf = (elements: GraphElement[]): GraphElement[] => elements.filter((e) => e.data.source);
+const byId = (elements: GraphElement[], id: string): GraphElement => {
+  const found = elements.find((e) => e.data.id === id);
+  if (!found) {
+    throw new Error(`no element "${id}"`);
+  }
+  return found;
+};
+
+/** The style block of one selector in a stylesheet */
+const styleOf = (styles: StylesheetJson, selector: string): Record<string, unknown> => {
+  const block = styles.find((s) => s.selector === selector) as unknown as
+    { style: Record<string, unknown> } | undefined;
+  if (!block) {
+    throw new Error(`no style for "${selector}"`);
+  }
+  return block.style;
+};
 
 describe('getNodeSize', () => {
   it('uses the minimum width for short labels', () => {
@@ -58,7 +90,7 @@ describe('compareNames', () => {
 
 describe('uniqueId', () => {
   it('returns the base when free and records it', () => {
-    const taken = new Set();
+    const taken = new Set<string>();
     expect(uniqueId('e1', taken)).toBe('e1');
     expect(taken.has('e1')).toBe(true);
   });
@@ -70,7 +102,7 @@ describe('uniqueId', () => {
 });
 
 describe('uniquifyLayout', () => {
-  beforeEach(() => vi.spyOn(console, 'info').mockImplementation(() => {}));
+  beforeEach(() => vi.spyOn(console, 'warn').mockImplementation(() => undefined));
   afterEach(() => vi.restoreAllMocks());
 
   it('keeps unique ids unchanged', () => {
@@ -78,7 +110,15 @@ describe('uniquifyLayout', () => {
   });
 
   it('renames repeated ids with (n)', () => {
-    expect(uniquifyLayout([['a', 'b'], ['a', 'a']])).toEqual([['a', 'b'], ['a(1)', 'a(2)']]);
+    expect(
+      uniquifyLayout([
+        ['a', 'b'],
+        ['a', 'a'],
+      ])
+    ).toEqual([
+      ['a', 'b'],
+      ['a(1)', 'a(2)'],
+    ]);
   });
 
   it('handles an empty layout', () => {
@@ -89,7 +129,11 @@ describe('uniquifyLayout', () => {
 describe('buildGraph', () => {
   it('creates a compartment per folder with a camelCase id', () => {
     const elements = buildGraph({ 'Folder A': ['a'] }, []);
-    expect(byId(elements, 'folderA').data).toEqual({ id: 'folderA', class: 'compartment', label: 'Folder A' });
+    expect(byId(elements, 'folderA').data).toEqual({
+      id: 'folderA',
+      class: 'compartment',
+      label: 'Folder A',
+    });
   });
 
   it('puts folder members inside their folder with group and display label', () => {
@@ -120,7 +164,7 @@ describe('buildGraph', () => {
     expect(byId(elements, 'x').data.group).toBe('A');
     expect(byId(elements, 'x(1)').data).toMatchObject({ rawLabel: 'x', group: 'B' });
     // Edges connect to the first copy
-    expect(edgesOf(elements)[0].data).toMatchObject({ source: 'x', target: 'y' });
+    expect(edgesOf(elements)[0]?.data).toMatchObject({ source: 'x', target: 'y' });
   });
 
   it('avoids a folder id that clashes with a report id', () => {
@@ -130,7 +174,15 @@ describe('buildGraph', () => {
   });
 
   it('creates each report once', () => {
-    const elements = buildGraph({ A: ['a'] }, [['a', 'b'], ['b', 'a'], ['a', 'c']], ['a', 'c']);
+    const elements = buildGraph(
+      { A: ['a'] },
+      [
+        ['a', 'b'],
+        ['b', 'a'],
+        ['a', 'c'],
+      ],
+      ['a', 'c']
+    );
     const reportIds = nodesOf(elements)
       .filter((e) => e.data.class === 'macromolecule')
       .map((e) => e.data.id);
@@ -138,24 +190,36 @@ describe('buildGraph', () => {
   });
 
   it('merges [a,b] and [b,a] into one two-way edge', () => {
-    const edges = edgesOf(buildGraph({}, [['a', 'b'], ['b', 'a']]));
+    const edges = edgesOf(
+      buildGraph({}, [
+        ['a', 'b'],
+        ['b', 'a'],
+      ])
+    );
     expect(edges).toHaveLength(1);
-    expect(edges[0].classes).toBe('bidirectional');
+    expect(edges[0]?.classes).toBe('bidirectional');
   });
 
   it('keeps a one-way edge without the two-way class', () => {
     const edges = edgesOf(buildGraph({}, [['a', 'b']]));
-    expect(edges[0].classes).toBeUndefined();
+    expect(edges[0]?.classes).toBeUndefined();
   });
 
   it('skips an edge listed twice', () => {
-    expect(edgesOf(buildGraph({}, [['a', 'b'], ['a', 'b']]))).toHaveLength(1);
+    expect(
+      edgesOf(
+        buildGraph({}, [
+          ['a', 'b'],
+          ['a', 'b'],
+        ])
+      )
+    ).toHaveLength(1);
   });
 
   it('keeps a self connection', () => {
     const edges = edgesOf(buildGraph({}, [['a', 'a']]));
     expect(edges).toHaveLength(1);
-    expect(edges[0].data).toMatchObject({ source: 'a', target: 'a' });
+    expect(edges[0]?.data).toMatchObject({ source: 'a', target: 'a' });
   });
 
   it('gives edges ids that do not clash with report names', () => {
@@ -169,11 +233,11 @@ describe('getVisibleElements', () => {
   const all = buildGraph({ Sales: ['r1'] }, [['r1', 'r2']]);
 
   it('keeps folders when shown', () => {
-    expect(byId(getVisibleElements(all, true, true), 'sales')).toBeDefined();
+    expect(getVisibleElements(all, true, true).some((e) => e.data.id === 'sales')).toBe(true);
   });
 
   it('drops folders when hidden', () => {
-    expect(byId(getVisibleElements(all, false, true), 'sales')).toBeUndefined();
+    expect(getVisibleElements(all, false, true).some((e) => e.data.id === 'sales')).toBe(false);
   });
 
   it('labels reports with the group when asked', () => {
@@ -201,7 +265,12 @@ describe('REPORT_NODE selector', () => {
   // the search list and disabled double/right click
   it('matches every report and no folder', () => {
     const cy = makeCy({ Sales: ['r1', 'r2'] }, [['r1', 'r3']], ['ralone']);
-    expect(cy.nodes(REPORT_NODE).map((n) => n.id()).sort()).toEqual(['r1', 'r2', 'r3', 'ralone']);
+    expect(
+      cy
+        .nodes(REPORT_NODE)
+        .map((n) => n.id())
+        .sort()
+    ).toEqual(['r1', 'r2', 'r3', 'ralone']);
   });
 
   it('receives double click and right click events on reports', () => {
@@ -222,8 +291,13 @@ describe('REPORT_NODE selector', () => {
 
 describe('getNodeInfo with allLevels', () => {
   // a -> b -> c -> d, and e -> b
-  const cy = makeCy({}, [['a', 'b'], ['b', 'c'], ['c', 'd'], ['e', 'b']]);
-  const ids = (list) => list.map((x) => x.id);
+  const cy = makeCy({}, [
+    ['a', 'b'],
+    ['b', 'c'],
+    ['c', 'd'],
+    ['e', 'b'],
+  ]);
+  const ids = (list: NodeRef[]): string[] => list.map((x) => x.id);
 
   it('lists only the direct neighbours by default', () => {
     const info = getNodeInfo(cy.getElementById('c'));
@@ -239,12 +313,16 @@ describe('getNodeInfo with allLevels', () => {
 });
 
 describe('getNodeInfo', () => {
-  const cy = makeCy(
-    { Sales: ['a', 'b'] },
-    [['p1', 'a'], ['P2', 'a'], ['a', 'c'], ['a', 'b'], ['b', 'a'], ['a', 'a']]
-  );
+  const cy = makeCy({ Sales: ['a', 'b'] }, [
+    ['p1', 'a'],
+    ['P2', 'a'],
+    ['a', 'c'],
+    ['a', 'b'],
+    ['b', 'a'],
+    ['a', 'a'],
+  ]);
   const info = getNodeInfo(cy.getElementById('a'));
-  const names = (list) => list.map((x) => x.name);
+  const names = (list: NodeRef[]): string[] => list.map((x) => x.name);
 
   it('describes the node itself', () => {
     expect(info).toMatchObject({ id: 'a', name: 'a', group: 'Sales' });
@@ -261,8 +339,8 @@ describe('getNodeInfo', () => {
   });
 
   it('includes each neighbour group', () => {
-    expect(info.children.find((x) => x.name === 'b').group).toBe('Sales');
-    expect(info.children.find((x) => x.name === 'c').group).toBeNull();
+    expect(info.children.find((x) => x.name === 'b')?.group).toBe('Sales');
+    expect(info.children.find((x) => x.name === 'c')?.group).toBeNull();
   });
 
   it('returns empty lists for an unconnected node', () => {
@@ -273,7 +351,11 @@ describe('getNodeInfo', () => {
 
 describe('formatNodeInfo (clipboard text)', () => {
   it('copies the same information as the side panel', () => {
-    const cy = makeCy({ Sales: ['r1', 'r2'] }, [['p', 'r1'], ['r1', 'r2'], ['r1', 'c']]);
+    const cy = makeCy({ Sales: ['r1', 'r2'] }, [
+      ['p', 'r1'],
+      ['r1', 'r2'],
+      ['r1', 'c'],
+    ]);
     expect(formatNodeInfo(getNodeInfo(cy.getElementById('r1')))).toBe(
       [
         'Node: r1',
@@ -297,7 +379,7 @@ describe('formatNodeInfo (clipboard text)', () => {
 });
 
 describe('applyLayout', () => {
-  beforeEach(() => vi.spyOn(console, 'warn').mockImplementation(() => {}));
+  beforeEach(() => vi.spyOn(console, 'warn').mockImplementation(() => undefined));
   afterEach(() => vi.restoreAllMocks());
 
   it('places nodes on a grid using the offsets', () => {
@@ -315,11 +397,11 @@ describe('applyLayout', () => {
   });
 
   it('places a folder copy "x(1)" in its layout cell', () => {
-    const info = vi.spyOn(console, 'info').mockImplementation(() => {});
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const cy = makeCy({ A: ['x'], B: ['x'] }, []);
     applyLayout(cy, uniquifyLayout([['x', 'x']]), { offsetX: 100, offsetY: 100 });
     expect(cy.getElementById('x(1)').position()).toEqual({ x: 200, y: 100 });
-    expect(info).toHaveBeenCalledWith('layout: duplicate id "x" — renamed to "x(1)"');
+    expect(warn).toHaveBeenCalledWith('layout: duplicate id "x" — renamed to "x(1)"');
   });
 
   it('warns about and skips unknown ids', () => {
@@ -356,8 +438,14 @@ describe('layoutFromFolders (no layout given)', () => {
 });
 
 describe('makeStyles (default stylesheet)', () => {
-  const cy = makeCy({}, [['a', 'b'], ['b', 'a'], ['a', 'c'], ['d', 'd']]);
-  const edge = (s, t) => cy.edges().filter((e) => e.source().id() === s && e.target().id() === t);
+  const cy = makeCy({}, [
+    ['a', 'b'],
+    ['b', 'a'],
+    ['a', 'c'],
+    ['d', 'd'],
+  ]);
+  const edge = (s: string, t: string): cytoscape.EdgeCollection =>
+    cy.edges().filter((e) => e.source().id() === s && e.target().id() === t);
 
   it('draws one arrow on one-way edges', () => {
     expect(edge('a', 'c').style('target-arrow-shape')).toBe('vee');
@@ -381,7 +469,7 @@ describe('makeStyles (default stylesheet)', () => {
 });
 
 describe('getHiddenElements (unchecked in Node to Display)', () => {
-  const ids = (eles) => eles.map((e) => e.id()).sort();
+  const ids = (eles: cytoscape.Collection): string[] => eles.map((e) => e.id()).sort();
 
   it('hides nothing when every report is checked', () => {
     const cy = makeCy({ A: ['a', 'b'] }, [['a', 'b']]);
@@ -395,27 +483,41 @@ describe('getHiddenElements (unchecked in Node to Display)', () => {
     hidden.addClass('hidden');
     expect(cy.getElementById('a').visible()).toBe(false);
     expect(cy.getElementById('b').visible()).toBe(true);
-    expect(cy.edges()[0].visible()).toBe(false);
+    expect(cy.edges()[0]?.visible()).toBe(false);
   });
 
   it('hides a folder once all its reports are unchecked', () => {
     const cy = makeCy({ A: ['a', 'b'], B: ['c'] }, []);
-    const folderA = cy.nodes(':parent').filter((f) => f.data('label') === 'A').id();
+    const folderA = cy
+      .nodes(':parent')
+      .filter((f) => f.data('label') === 'A')
+      .id();
     expect(ids(getHiddenElements(cy, new Set(['a'])))).toEqual(['a']);
     expect(ids(getHiddenElements(cy, new Set(['a', 'b'])))).toEqual(['a', 'b', folderA].sort());
   });
 
   it('only hides reports, never a folder by its own id', () => {
     const cy = makeCy({ A: ['a'] }, []);
-    const folderA = cy.nodes(':parent').id();
+    const folderA = cy.nodes(':parent').first().id();
     expect(getHiddenElements(cy, new Set([folderA])).length).toBe(0);
   });
 });
 
 describe('getTrackedElements', () => {
   // a -> b -> c -> d, x -> c, and a two-way edge c <-> y
-  const EDGES = [['a', 'b'], ['b', 'c'], ['c', 'd'], ['x', 'c'], ['c', 'y'], ['y', 'c']];
-  const ids = (coll, sel) => coll.filter(sel).map((e) => e.id()).sort();
+  const EDGES: Connections = [
+    ['a', 'b'],
+    ['b', 'c'],
+    ['c', 'd'],
+    ['x', 'c'],
+    ['c', 'y'],
+    ['y', 'c'],
+  ];
+  const ids = (coll: cytoscape.Collection, sel: string): string[] =>
+    coll
+      .filter(sel)
+      .map((e) => e.id())
+      .sort();
 
   it('collects every parent up the chain, with their edges', () => {
     const cy = makeCy({}, EDGES);
@@ -437,7 +539,11 @@ describe('getTrackedElements', () => {
   });
 
   it('stops on cycles', () => {
-    const cy = makeCy({}, [['p', 'q'], ['q', 'r'], ['r', 'p']]);
+    const cy = makeCy({}, [
+      ['p', 'q'],
+      ['q', 'r'],
+      ['r', 'p'],
+    ]);
     const trail = getTrackedElements(cy.getElementById('p'), 'children');
     expect(ids(trail, 'node')).toEqual(['p', 'q', 'r']);
     expect(trail.edges().length).toBe(3);
@@ -445,8 +551,6 @@ describe('getTrackedElements', () => {
 });
 
 describe('track colors', () => {
-  const styleOf = (styles, selector) => styles.find((s) => s.selector === selector)?.style;
-
   it('uses green for parents and purple for children by default', () => {
     const styles = makeStyles();
     expect(styleOf(styles, 'edge.track-parents')['line-color']).toBe('#2e7d32');
@@ -475,20 +579,38 @@ describe('track colors', () => {
   });
 
   it('applyTracking takes the common color as a parameter', () => {
-    const cy = makeCy({}, [['a', 'b'], ['b', 'c']]);
-    applyTracking(cy, [{ id: 'c', direction: 'parents' }, { id: 'a', direction: 'children' }], '#123456');
+    const cy = makeCy({}, [
+      ['a', 'b'],
+      ['b', 'c'],
+    ]);
+    applyTracking(
+      cy,
+      [
+        { id: 'c', direction: 'parents' },
+        { id: 'a', direction: 'children' },
+      ],
+      '#123456'
+    );
     expect(cy.getElementById('b').data('trackMixColor')).toBe('#123456');
   });
 });
 
 describe('applyTracking (Track node 1 and 2)', () => {
   // a -> b -> c, and d -> b
-  const setup = () => makeCy({}, [['a', 'b'], ['b', 'c'], ['d', 'b']]);
-  const classesOf = (cy, id) => cy.getElementById(id).classes();
+  const setup = () =>
+    makeCy({}, [
+      ['a', 'b'],
+      ['b', 'c'],
+      ['d', 'b'],
+    ]);
+  const classesOf = (cy: cytoscape.Core, id: string): string[] => cy.getElementById(id).classes();
 
   it('highlights one track and dims the rest', () => {
     const cy = setup();
-    applyTracking(cy, [{ id: 'c', direction: 'parents' }, { id: '', direction: 'parents' }]);
+    applyTracking(cy, [
+      { id: 'c', direction: 'parents' },
+      { id: '', direction: 'parents' },
+    ]);
     expect(classesOf(cy, 'c')).toEqual(expect.arrayContaining(['track-parents', 'track-root']));
     expect(cy.getElementById('a').hasClass('track-parents')).toBe(true);
     expect(cy.getElementById('d').hasClass('track-parents')).toBe(true);
@@ -498,7 +620,10 @@ describe('applyTracking (Track node 1 and 2)', () => {
 
   it('uses track 2 classes for the second track', () => {
     const cy = setup();
-    applyTracking(cy, [{ id: '', direction: 'parents' }, { id: 'a', direction: 'children' }]);
+    applyTracking(cy, [
+      { id: '', direction: 'parents' },
+      { id: 'a', direction: 'children' },
+    ]);
     expect(classesOf(cy, 'a')).toEqual(expect.arrayContaining(['track2-children', 'track2-root']));
     expect(cy.getElementById('c').hasClass('track2-children')).toBe(true);
     expect(cy.getElementById('d').hasClass('faded')).toBe(true);
@@ -507,10 +632,18 @@ describe('applyTracking (Track node 1 and 2)', () => {
   it('uses the common color on elements both tracks share', () => {
     const cy = setup();
     // Track 1: parents of c = a, b, c, d. Track 2: children of a = a, b, c
-    applyTracking(cy, [{ id: 'c', direction: 'parents' }, { id: 'a', direction: 'children' }]);
+    applyTracking(cy, [
+      { id: 'c', direction: 'parents' },
+      { id: 'a', direction: 'children' },
+    ]);
     const mixed = DEFAULT_TRACK_COMMON_COLOR;
     const shared = cy.$('.track-mixed');
-    expect(shared.nodes().map((n) => n.id()).sort()).toEqual(['a', 'b', 'c']);
+    expect(
+      shared
+        .nodes()
+        .map((n) => n.id())
+        .sort()
+    ).toEqual(['a', 'b', 'c']);
     expect(shared.edges().length).toBe(2); // a->b, b->c
     expect(cy.getElementById('b').data('trackMixColor')).toBe(mixed);
     expect(cy.getElementById('a').data('trackMixFill')).toBe(lightTint(mixed));
@@ -520,15 +653,21 @@ describe('applyTracking (Track node 1 and 2)', () => {
 
   it('clears everything when both tracks are off', () => {
     const cy = setup();
-    applyTracking(cy, [{ id: 'c', direction: 'parents' }, { id: 'a', direction: 'children' }]);
-    applyTracking(cy, [{ id: '', direction: 'parents' }, { id: '', direction: 'parents' }]);
+    applyTracking(cy, [
+      { id: 'c', direction: 'parents' },
+      { id: 'a', direction: 'children' },
+    ]);
+    applyTracking(cy, [
+      { id: '', direction: 'parents' },
+      { id: '', direction: 'parents' },
+    ]);
     expect(cy.$('.faded, .track-mixed, .track-parents, .track2-children').length).toBe(0);
     expect(cy.getElementById('b').data('trackMixColor')).toBeUndefined();
   });
 });
 
 describe('selected node color', () => {
-  const overlayOf = (styles) => styles.find((s) => s.selector === '.selected').style['overlay-color'];
+  const overlayOf = (styles: StylesheetJson): unknown => styleOf(styles, '.selected')['overlay-color'];
 
   it('is pink by default', () => {
     expect(overlayOf(makeStyles())).toBe('#e91e63');
