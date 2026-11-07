@@ -49,9 +49,6 @@ _The [quick start](#quick-start) example, with the_ Node to Display _list open._
 
 - **Report boxes fit their text**: each box is as big as its label plus a little padding (it was a fixed 200 × 60); the _Font Graph Panel_ − / + buttons resize the boxes with the text
 - Built and type-checked with TypeScript 7; dependencies updated
-
-### 1.2.0
-
 - **Show Dependency 1 and 2**: two independent chains of parents or children, each with its own colors; reports and arrows on both use `commonColor`
 - **Details panel**: _One level / All levels_ switch, also used by _Save to clipboard_
 - **Text size**: dropdown with − / + buttons for the top row, the details panel and the graph
