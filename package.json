@@ -57,7 +57,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check": "npm run typecheck && npm run lint && npm run format:check && npm test",
-    "typecheck": "node node_modules/typescript7/bin/tsc --noEmit && node node_modules/typescript7/bin/tsc --noEmit -p examples"
+    "typecheck": "node node_modules/typescript7/bin/tsc --noEmit && node node_modules/typescript7/bin/tsc --noEmit -p examples",
+    "smoke": "npm --prefix examples run build && node scripts/smoke.mjs"
   },
   "peerDependencies": {
     "react": ">=18",
@@ -81,6 +82,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.14.0",
     "jsdom": "^29.1.1",
+    "playwright-core": "^1.65.0",
     "prettier": "^3.9.10",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",

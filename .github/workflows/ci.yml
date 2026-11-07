@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # package-lock.json is not committed, so a plain install
+      - run: npm install
+      - run: npm --prefix examples install
+      # typecheck + lint + format check + unit tests
+      - run: npm run check
+      # the npm package builds, with its type files
+      - run: npm run build:lib
+      # the example app is really drawn in a browser (Chrome comes with the runner)
+      - run: npm run smoke
+        env:
+          CHROME_PATH: /usr/bin/google-chrome

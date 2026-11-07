@@ -85,6 +85,8 @@ export default [
       '@typescript-eslint/no-confusing-void-expression': ['error', { ignoreArrowShorthand: true }],
     },
   },
+  // Command line scripts print their result
+  { files: ['scripts/**'], rules: { 'no-console': 'off' } },
   // Plain config files are not part of a TypeScript project: no type-aware rules there
   {
     files: ['**/*.mjs'],

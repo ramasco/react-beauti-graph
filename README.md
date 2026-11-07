@@ -6,7 +6,7 @@ A React component for drawing report dependency graphs with [Cytoscape](https://
 Give it your reports, the groups they belong to and the connections between them; it draws the graph
 on a grid and adds search, tracing of parents and children, a details panel and clipboard export.
 
-![react-beauti-graph example: reports r001 and r002 in a Sales group joined by a two-way arrow, an arrow from r002 to r003 in a Finance group, and the Select a node list open with ALL, r001, r002 and r003](https://raw.githubusercontent.com/ramasco/react-beauti-graph/main/docs/example.jpg)
+![react-beauti-graph example: reports r001 and r002 in a Sales group joined by a two-way arrow, an arrow from r002 to r003 in a Finance group, and the Node to Display list open with ALL, r001, r002 and r003](https://raw.githubusercontent.com/ramasco/react-beauti-graph/main/docs/example.jpg)
 
 _The [quick start](#quick-start) example, with the_ Node to Display _list open._
 
@@ -214,7 +214,7 @@ disappears too. Hidden reports stay in the list, greyed out.
 Clicking a checkbox does not select the report and keeps the list open, so you can hide several in a row.
 Picking a hidden report by name shows it again, and _ALL_ zooms to fit the reports that are shown.
 
-![The Select a node list with r001 unchecked and greyed out: the graph shows only r002 with its arrow to r003; r001 and the two-way arrow are gone](https://raw.githubusercontent.com/ramasco/react-beauti-graph/main/docs/example_filter_out_node.jpg)
+![The Node to Display list with r001 unchecked and greyed out: the graph shows only r002 with its arrow to r003; r001 and the two-way arrow are gone](https://raw.githubusercontent.com/ramasco/react-beauti-graph/main/docs/example_filter_out_node.jpg)
 
 _`r001` unchecked, with_ Show Groups _and_ Add Group to Node Name _turned off: only `r002 → r003` is left._
 
@@ -331,6 +331,7 @@ npm run lint       # ESLint, strict rules (eslint.config.mjs)
 npm run format     # Prettier: formats the code (npm run format:check only checks)
 npm run check      # typecheck + lint + format check + tests: run it before a commit
 npm run build:lib  # build the npm package (code and .d.ts types) into dist/
+npm run smoke      # draws the example app in Chrome or Edge and checks the arrows are painted
 ```
 
 **Example app** (`examples/`):
@@ -346,19 +347,21 @@ On Windows, `examples/run.cmd` installs the example's dependencies the first tim
 `npm run dev` does the same as `cd examples && npm run dev`. While developing, the name `react-beauti-graph`
 points at the library source in `src/` (see `examples/vite.config.mjs`), so library changes show up at once.
 
-| Path                                                             | Contents                                                                         |
-| ---------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| `src/graphFactory.tsx`                                           | The library: `create_graph`, layout, styles, search box                          |
-| `src/default_setting.ts`                                         | Default colors, text sizes and layout (the `DEFAULT_*` values)                   |
-| `src/react-beauti-graph.css`                                     | The library styles (published as `style.css`)                                    |
-| `src/index.ts`                                                   | Public entry point of the package (the `.d.ts` types are generated into `dist/`) |
-| `tests/`                                                         | `graphFactory.test.ts`, `NodeSearch.test.tsx`                                    |
-| `tsconfig.json`, `tsconfig.build.json`                           | TypeScript settings (strict), and the settings that generate the types           |
-| `vite.lib.config.mjs`, `vitest.config.mjs`                       | Build of the npm package, and the test setup                                     |
-| `examples/DemoApp.tsx`                                           | The example page, with the _Demo data_ dropdown                                  |
-| `examples/main.tsx`, `examples/index.html`, `examples/index.css` | The Vite entry that mounts the example page, and its page styles                 |
-| `examples/samples/`                                              | Example data: a small example and 100 reports in 5 groups                        |
-| `examples/package.json`, `examples/vite.config.mjs`              | The example app's own dependencies and Vite setup                                |
+| Path                                                             | Contents                                                                           |
+| ---------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `src/graphFactory.tsx`                                           | The library: `create_graph`, layout, styles, search box                            |
+| `src/default_setting.ts`                                         | Default colors, text sizes and layout (the `DEFAULT_*` values)                     |
+| `src/react-beauti-graph.css`                                     | The library styles (published as `style.css`)                                      |
+| `src/index.ts`                                                   | Public entry point of the package (the `.d.ts` types are generated into `dist/`)   |
+| `tests/`                                                         | `graphFactory.test.ts`, `NodeSearch.test.tsx`                                      |
+| `tsconfig.json`, `tsconfig.build.json`                           | TypeScript settings (strict), and the settings that generate the types             |
+| `scripts/`                                                       | `smoke.mjs` (browser smoke test) and `make-cts.mjs` (finishes the type files)      |
+| `.github/workflows/ci.yml`                                       | GitHub Actions: runs the check, the package build and the smoke test on every push |
+| `vite.lib.config.mjs`, `vitest.config.mjs`                       | Build of the npm package, and the test setup                                       |
+| `examples/DemoApp.tsx`                                           | The example page, with the _Demo data_ dropdown                                    |
+| `examples/main.tsx`, `examples/index.html`, `examples/index.css` | The Vite entry that mounts the example page, and its page styles                   |
+| `examples/samples/`                                              | Example data: a small example and 100 reports in 5 groups                          |
+| `examples/package.json`, `examples/vite.config.mjs`              | The example app's own dependencies and Vite setup                                  |
 
 In the example app, switch between the two samples with the _Demo data_ dropdown at the top of the page.
 
