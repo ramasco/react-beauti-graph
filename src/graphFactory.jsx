@@ -14,9 +14,13 @@ import cytoscape from 'cytoscape';
 
 // Color of the node picked in "Select a node" (options.selectedColor)
 export const DEFAULT_SELECTED_COLOR = '#e91e63';
-// "Track node" chain colors (options.parentsColor, options.childrenColor)
+// "Track node 1" chain colors (options.parentsColor, options.childrenColor)
 export const DEFAULT_PARENTS_COLOR = '#2e7d32';
 export const DEFAULT_CHILDREN_COLOR = '#7b1fa2';
+// "Track node 2" chain colors (options.track2ParentsColor, options.track2ChildrenColor).
+// Nodes and edges on both chains are drawn in a mix of the two chain colors.
+export const DEFAULT_TRACK2_PARENTS_COLOR = '#ef6c00';
+export const DEFAULT_TRACK2_CHILDREN_COLOR = '#00897b';
 // Reports per row when the layout is built from the folders (options.layoutColumns)
 export const DEFAULT_LAYOUT_COLUMNS = 10;
 // Text size of the top controls row: "Select a node", "Track node", ... (options.topControlsFontSize)
@@ -433,15 +437,110 @@ export function lightTint(color, amount = 0.88) {
 }
 
 /**
+ * Mixes two "#rrggbb" colors half and half (used where the two tracked chains meet).
+ * If one of them is not a hex color, the other one is returned.
+ * @param {string} a - Hex color
+ * @param {string} b - Hex color
+ * @returns {string} Hex color
+ */
+export function mixColors(a, b) {
+  const parse = (c) => {
+    const m = /^#([0-9a-f]{6})$/i.exec(c ?? '');
+    return m ? parseInt(m[1], 16) : null;
+  };
+  const x = parse(a);
+  const y = parse(b);
+  if (x === null) return b;
+  if (y === null) return a;
+  return (
+    '#' +
+    [16, 8, 0]
+      .map((shift) =>
+        Math.round((((x >> shift) & 0xff) + ((y >> shift) & 0xff)) / 2)
+          .toString(16)
+          .padStart(2, '0')
+      )
+      .join('')
+  );
+}
+
+/**
+ * Track node chain colors, [track 1, track 2], each with its parents and children color.
+ * @param {Object} [colors] - parentsColor, childrenColor, track2ParentsColor, track2ChildrenColor
+ * @returns {[{parents: string, children: string}, {parents: string, children: string}]}
+ */
+export function trackColors({
+  parentsColor = DEFAULT_PARENTS_COLOR,
+  childrenColor = DEFAULT_CHILDREN_COLOR,
+  track2ParentsColor = DEFAULT_TRACK2_PARENTS_COLOR,
+  track2ChildrenColor = DEFAULT_TRACK2_CHILDREN_COLOR,
+} = {}) {
+  return [
+    { parents: parentsColor, children: childrenColor },
+    { parents: track2ParentsColor, children: track2ChildrenColor },
+  ];
+}
+
+/**
+ * Highlights the tracked chains (Track node 1 and 2) and dims the rest.
+ * Elements on one chain get that track's class (track-parents, track2-children, ...);
+ * elements on both chains also get "track-mixed" with the mixed color in
+ * data(trackMixColor) and, for the tracked nodes, its light tint in data(trackMixFill).
+ * @param {cytoscape.Core} cy - Cytoscape instance
+ * @param {{id: string, direction: 'parents'|'children'}[]} tracks - Track 1 and Track 2 ('' id = off)
+ * @param {[{parents: string, children: string}, {parents: string, children: string}]} colors
+ *   Chain colors of track 1 and track 2
+ */
+export function applyTracking(cy, tracks, colors) {
+  const prefixes = ['track', 'track2'];
+  const allClasses = prefixes
+    .flatMap((p) => [`${p}-parents`, `${p}-children`, `${p}-root`])
+    .concat('faded', 'track-mixed')
+    .join(' ');
+
+  cy.batch(() => {
+    cy.elements().removeClass(allClasses).removeData('trackMixColor trackMixFill');
+
+    const trails = tracks.map(({ id, direction }, i) => {
+      if (!id) return null;
+      const root = cy.getElementById(id);
+      if (root.empty()) return null;
+      const trail = getTrackedElements(root, direction);
+      trail.addClass(`${prefixes[i]}-${direction}`);
+      root.addClass(`${prefixes[i]}-root`);
+      return trail;
+    });
+
+    const active = trails.filter(Boolean);
+    if (active.length === 0) return;
+
+    if (trails[0] && trails[1]) {
+      const mixed = mixColors(colors[0][tracks[0].direction], colors[1][tracks[1].direction]);
+      trails[0].intersection(trails[1]).forEach((ele) => {
+        ele.data({ trackMixColor: mixed, trackMixFill: lightTint(mixed) });
+        ele.addClass('track-mixed');
+      });
+    }
+
+    // Folders stay visible; only reports and edges off every chain are dimmed
+    const onChains = active.reduce((all, trail) => all.union(trail));
+    cy.elements().not(onChains).not('node:parent').addClass('faded');
+  });
+}
+
+/**
  * Cytoscape stylesheet; later rules override earlier ones.
- * @param {{selectedColor?: string, parentsColor?: string, childrenColor?: string}} [colors]
- *   Selected node color and Track node chain colors
+ * @param {{selectedColor?: string, parentsColor?: string, childrenColor?: string,
+ *   track2ParentsColor?: string, track2ChildrenColor?: string}} [colors]
+ *   Selected node color and Track node 1 / Track node 2 chain colors
  * @returns {Object[]} Stylesheet
  */
 export function makeStyles({
   selectedColor = DEFAULT_SELECTED_COLOR,
   parentsColor = DEFAULT_PARENTS_COLOR,
   childrenColor = DEFAULT_CHILDREN_COLOR,
+  track2ParentsColor = DEFAULT_TRACK2_PARENTS_COLOR,
+  track2ChildrenColor = DEFAULT_TRACK2_CHILDREN_COLOR,
 } = {}) {
   return [
     {
@@ -522,9 +621,11 @@ export function makeStyles({
       style: { opacity: 0.15 },
     },
     ...[
-      ['track-parents', parentsColor],
-      ['track-children', childrenColor],
-    ].flatMap(([cls, color]) => [
+      ['track-parents', 'track-root', parentsColor],
+      ['track-children', 'track-root', childrenColor],
+      ['track2-parents', 'track2-root', track2ParentsColor],
+      ['track2-children', 'track2-root', track2ChildrenColor],
+    ].flatMap(([cls, root, color]) => [
       {
         selector: `edge.${cls}`,
         style: {
@@ -539,10 +640,28 @@ export function makeStyles({
         style: { 'border-color': color, 'border-width': 3 },
       },
       {
-        selector: `node.${cls}.track-root`,
+        selector: `node.${cls}.${root}`,
         style: { 'border-width': 5, 'background-color': lightTint(color) },
       },
     ]),
+    // On both tracked chains: the mix of the two chain colors (set per element by applyTracking)
+    {
+      selector: 'edge.track-mixed',
+      style: {
+        'line-color': 'data(trackMixColor)',
+        'target-arrow-color': 'data(trackMixColor)',
+        'source-arrow-color': 'data(trackMixColor)',
+        width: 5,
+      },
+    },
+    {
+      selector: 'node.track-mixed',
+      style: { 'border-color': 'data(trackMixColor)', 'border-width': 4 },
+    },
+    {
+      selector: 'node.track-mixed.track-root, node.track-mixed.track2-root',
+      style: { 'border-width': 6, 'background-color': 'data(trackMixFill)' },
+    },
     {
       // Unchecked in "Select a node": not drawn (nor are its edges)
       selector: '.hidden',
@@ -743,7 +862,8 @@ export function NodeSearch({
  * @param {Object} options - Layout rendering options (startX, startY, offsetX, offsetY, base,
  *   layoutColumns = reports per row when the layout is built from the folders)
  *   plus the colors ("#rrggbb"): selectedColor (Select a node), parentsColor and
- *   childrenColor (Track node), topControlsFontSize (text size of the top controls row, e.g. '16px')
+ *   childrenColor (Track node 1), track2ParentsColor and track2ChildrenColor (Track node 2;
+ *   elements on both chains get a mix of the two colors), topControlsFontSize (text size of the top controls row, e.g. '16px')
  *   and rightDisplayFontSize (text size of the right details panel)
  * @returns {React.FC} Graph component
  */
@@ -763,17 +883,31 @@ export function create_graph(
     selectedColor = DEFAULT_SELECTED_COLOR,
     parentsColor = DEFAULT_PARENTS_COLOR,
     childrenColor = DEFAULT_CHILDREN_COLOR,
+    track2ParentsColor = DEFAULT_TRACK2_PARENTS_COLOR,
+    track2ChildrenColor = DEFAULT_TRACK2_CHILDREN_COLOR,
     topControlsFontSize = DEFAULT_TOP_CONTROLS_FONT_SIZE,
     rightDisplayFontSize = DEFAULT_RIGHT_DISPLAY_FONT_SIZE,
     layoutColumns = DEFAULT_LAYOUT_COLUMNS,
   } = options;
-  const GRAPH_STYLES = makeStyles({ selectedColor, parentsColor, childrenColor });
+  const TRACK_COLORS = trackColors({ parentsColor, childrenColor, track2ParentsColor, track2ChildrenColor });
+  const GRAPH_STYLES = makeStyles({
+    selectedColor,
+    parentsColor,
+    childrenColor,
+    track2ParentsColor,
+    track2ChildrenColor,
+  });
   // Colors and text sizes for react-beauti-graph.css, set as CSS variables
   const CSS_VARS = {
     '--rbg-parents-color': parentsColor,
     '--rbg-children-color': childrenColor,
     '--rbg-top-controls-font-size': topControlsFontSize,
     '--rbg-right-display-font-size': rightDisplayFontSize,
+  };
+  // The Track node 2 switch reuses the same CSS with its own colors
+  const TRACK2_CSS_VARS = {
+    '--rbg-parents-color': track2ParentsColor,
+    '--rbg-children-color': track2ChildrenColor,
   };
   // Nodes listed only in the layout (no folder, no edges) are still shown
   const ALL_ELEMENTS = buildGraph(folders, direct_node_connections, hasLayout ? layout.flat() : []);
@@ -791,6 +925,8 @@ export function create_graph(
     const [fitRequest, setFitRequest] = useState(0); // bumped to zoom out to the full graph
     const [trackedId, setTrackedId] = useState(''); // '' = No tracking
     const [trackDirection, setTrackDirection] = useState('parents'); // 'parents' | 'children'
+    const [tracked2Id, setTracked2Id] = useState(''); // Track node 2, '' = No tracking
+    const [track2Direction, setTrack2Direction] = useState('parents');
     const [showFolders, setShowFolders] = useState(true);
     const [showGroupInLabel, setShowGroupInLabel] = useState(true);
     const [contextMenu, setContextMenu] = useState(null); // { x, y, copyText }
@@ -942,24 +1078,20 @@ export function create_graph(
       }
     }, [selectedId, showFolders, showGroupInLabel]);
 
-    // Track node: highlight the chain of parents/children, dim the rest.
-    // Also re-applied when a toggle rebuilds the graph.
+    // Track node 1 and 2: highlight each chain of parents/children (mixed color where
+    // they meet), dim the rest. Also re-applied when a toggle rebuilds the graph.
     useEffect(() => {
       const cy = cyRef.current;
       if (!cy) return;
-
-      cy.elements().removeClass('faded track-parents track-children track-root');
-      if (!trackedId) return;
-
-      const root = cy.getElementById(trackedId);
-      if (root.empty()) return;
-
-      const trail = getTrackedElements(root, trackDirection);
-      trail.addClass(`track-${trackDirection}`);
-      root.addClass('track-root');
-      // Folders stay visible; only reports and edges off the chain are dimmed
-      cy.elements().not(trail).not('node:parent').addClass('faded');
-    }, [trackedId, trackDirection, showFolders, showGroupInLabel]);
+      applyTracking(
+        cy,
+        [
+          { id: trackedId, direction: trackDirection },
+          { id: tracked2Id, direction: track2Direction },
+        ],
+        TRACK_COLORS
+      );
+    }, [trackedId, trackDirection, tracked2Id, track2Direction, showFolders, showGroupInLabel]);
 
     // Opening/closing the side panel changes the graph width
     const panelOpen = nodeInfo !== null;
@@ -1007,32 +1139,37 @@ export function create_graph(
             />
             Add Group to Node Name
           </label>
-          <span className="control-group">
-            <label htmlFor={`${uid}-track`}>Track node:</label>
-            <NodeSearch
-              id={`${uid}-track`}
-              options={nodeOptions}
-              selectedId={trackedId}
-              onSelect={setTrackedId}
-              noneLabel="No tracking"
-            />
-            {/* Nothing to track on "No tracking", so the switch is disabled */}
-            <span className={trackedId ? 'track-switch' : 'track-switch disabled'}>
-              <span className={trackDirection === 'parents' ? 'parents on' : 'parents'}>Parents</span>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={trackDirection === 'children'}
-                aria-label="Track children instead of parents"
-                className="switch"
-                disabled={!trackedId}
-                onClick={() => setTrackDirection((d) => (d === 'parents' ? 'children' : 'parents'))}
-              >
-                <span className="switch-knob" />
-              </button>
-              <span className={trackDirection === 'children' ? 'children on' : 'children'}>Children</span>
+          {[
+            [1, trackedId, setTrackedId, trackDirection, setTrackDirection, undefined],
+            [2, tracked2Id, setTracked2Id, track2Direction, setTrack2Direction, TRACK2_CSS_VARS],
+          ].map(([n, id, setId, direction, setDirection, style]) => (
+            <span className="control-group" key={n} style={style}>
+              <label htmlFor={`${uid}-track${n}`}>Track node {n}:</label>
+              <NodeSearch
+                id={`${uid}-track${n}`}
+                options={nodeOptions}
+                selectedId={id}
+                onSelect={setId}
+                noneLabel="No tracking"
+              />
+              {/* Nothing to track on "No tracking", so the switch is disabled */}
+              <span className={id ? 'track-switch' : 'track-switch disabled'}>
+                <span className={direction === 'parents' ? 'parents on' : 'parents'}>Parents</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={direction === 'children'}
+                  aria-label={`Track node ${n}: track children instead of parents`}
+                  className="switch"
+                  disabled={!id}
+                  onClick={() => setDirection((d) => (d === 'parents' ? 'children' : 'parents'))}
+                >
+                  <span className="switch-knob" />
+                </button>
+                <span className={direction === 'children' ? 'children on' : 'children'}>Children</span>
+              </span>
             </span>
-          </span>
+          ))}
           <span className="help">
             <button type="button" className="help-icon" aria-label="Help" aria-describedby={`${uid}-help`}>
               ?

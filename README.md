@@ -152,8 +152,10 @@ All optional.
 | `base` | `1` | Number of the first row and column (`0` puts the first report on the origin) |
 | `layoutColumns` | `10` | Reports per row when the layout is built from the folders |
 | `selectedColor` | `'#e91e63'` (pink) | Highlight of the report picked in *Select a node* |
-| `parentsColor` | `'#2e7d32'` (green) | *Track node*: chain of parents |
-| `childrenColor` | `'#7b1fa2'` (purple) | *Track node*: chain of children |
+| `parentsColor` | `'#2e7d32'` (green) | *Track node 1*: chain of parents |
+| `childrenColor` | `'#7b1fa2'` (purple) | *Track node 1*: chain of children |
+| `track2ParentsColor` | `'#ef6c00'` (orange) | *Track node 2*: chain of parents |
+| `track2ChildrenColor` | `'#00897b'` (teal) | *Track node 2*: chain of children |
 | `topControlsFontSize` | `'22px'` | Text size of the top row; its spacing grows with it |
 | `rightDisplayFontSize` | `'18px'` | Text size of the details panel |
 
@@ -201,6 +203,10 @@ the reports pointing to it, the reports pointing to those, and so on; with *Chil
 other direction. The chain is drawn in green (parents) or purple (children), the tracked report is
 filled, and everything else is dimmed.
 
+*Track node 2* works the same way with its own *Parents / Children* switch and its own colors,
+orange (parents) or teal (children), so two chains can be compared. Reports and arrows on both
+chains are drawn in a half-and-half mix of the two chain colors.
+
 ![Tracking the parents of r002: r001, r002 and the two-way arrow between them in green, r003 and its arrow dimmed](https://raw.githubusercontent.com/ramasco/react-beauti-graph/main/docs/example_track_node.jpg)
 
 *Parents of `r002`, with* Show Groups *and* Add Group to Node Name *turned off.*
@@ -215,11 +221,11 @@ filled, and everything else is dimmed.
 | Checkbox next to a report in the *Select a node* list | Shows or hides the report and its arrows; see [Filter out nodes](#filter-out-nodes). |
 | *Show Groups* | Shows or hides the folder boxes. |
 | *Add Group to Node Name* | Writes the folder after each report name, e.g. `r001 (Sales)`. |
-| *Track node* | Pick a report to highlight its whole chain (parents of parents, … or children of children, …) and dim the rest. *No tracking* turns it off. |
-| *Parents / Children* | Which chain *Track node* follows. Disabled while nothing is tracked. |
+| *Track node 1*, *Track node 2* | Pick a report to highlight its whole chain (parents of parents, … or children of children, …) and dim the rest. *No tracking* turns it off. Where the two chains meet, the colors are mixed. |
+| *Parents / Children* | Which chain the *Track node* next to it follows. Disabled while nothing is tracked. |
 | *?* | Short help. |
 
-In both search boxes, use the arrow keys and Enter to pick, Escape to close the list, and × to clear.
+In all search boxes, use the arrow keys and Enter to pick, Escape to close the list, and × to clear.
 
 **On the graph**
 

@@ -13,6 +13,9 @@ import {
   getTrackedElements,
   lightTint,
   makeStyles,
+  mixColors,
+  applyTracking,
+  trackColors,
   getVisibleElements,
   layoutFromFolders,
   uniqueId,
@@ -445,6 +448,66 @@ describe('track colors', () => {
     expect(lightTint('#000000', 0.5)).toBe('#808080');
     expect(lightTint('#ffffff')).toBe('#ffffff');
     expect(lightTint('red')).toBe('#ffffff'); // non-hex falls back to white
+  });
+
+  it('has orange/teal defaults for Track node 2, overridable', () => {
+    expect(styleOf(makeStyles(), 'edge.track2-parents')['line-color']).toBe('#ef6c00');
+    expect(styleOf(makeStyles(), 'edge.track2-children')['line-color']).toBe('#00897b');
+    const styles = makeStyles({ track2ParentsColor: '#123456' });
+    expect(styleOf(styles, 'node.track2-parents.track2-root')['background-color']).toBe(lightTint('#123456'));
+  });
+
+  it('mixColors averages two hex colors', () => {
+    expect(mixColors('#ff0000', '#0000ff')).toBe('#800080');
+    expect(mixColors('#000000', '#ffffff')).toBe('#808080');
+    expect(mixColors('red', '#00ff00')).toBe('#00ff00'); // non-hex: the other color
+  });
+});
+
+describe('applyTracking (Track node 1 and 2)', () => {
+  // a -> b -> c, and d -> b
+  const setup = () => makeCy({}, [['a', 'b'], ['b', 'c'], ['d', 'b']]);
+  const colors = trackColors();
+  const classesOf = (cy, id) => cy.getElementById(id).classes();
+
+  it('highlights one track and dims the rest', () => {
+    const cy = setup();
+    applyTracking(cy, [{ id: 'c', direction: 'parents' }, { id: '', direction: 'parents' }], colors);
+    expect(classesOf(cy, 'c')).toEqual(expect.arrayContaining(['track-parents', 'track-root']));
+    expect(cy.getElementById('a').hasClass('track-parents')).toBe(true);
+    expect(cy.getElementById('d').hasClass('track-parents')).toBe(true);
+    expect(cy.$('.faded').length).toBe(0); // every node is a parent of c
+    expect(cy.$('.track-mixed').length).toBe(0);
+  });
+
+  it('uses track 2 classes for the second track', () => {
+    const cy = setup();
+    applyTracking(cy, [{ id: '', direction: 'parents' }, { id: 'a', direction: 'children' }], colors);
+    expect(classesOf(cy, 'a')).toEqual(expect.arrayContaining(['track2-children', 'track2-root']));
+    expect(cy.getElementById('c').hasClass('track2-children')).toBe(true);
+    expect(cy.getElementById('d').hasClass('faded')).toBe(true);
+  });
+
+  it('mixes the colors on elements both tracks share', () => {
+    const cy = setup();
+    // Track 1: parents of c = a, b, c, d. Track 2: children of a = a, b, c
+    applyTracking(cy, [{ id: 'c', direction: 'parents' }, { id: 'a', direction: 'children' }], colors);
+    const mixed = mixColors(colors[0].parents, colors[1].children);
+    const shared = cy.$('.track-mixed');
+    expect(shared.nodes().map((n) => n.id()).sort()).toEqual(['a', 'b', 'c']);
+    expect(shared.edges().length).toBe(2); // a->b, b->c
+    expect(cy.getElementById('b').data('trackMixColor')).toBe(mixed);
+    expect(cy.getElementById('a').data('trackMixFill')).toBe(lightTint(mixed));
+    expect(cy.getElementById('d').hasClass('track-mixed')).toBe(false);
+    expect(cy.getElementById('d').hasClass('track-parents')).toBe(true);
+  });
+
+  it('clears everything when both tracks are off', () => {
+    const cy = setup();
+    applyTracking(cy, [{ id: 'c', direction: 'parents' }, { id: 'a', direction: 'children' }], colors);
+    applyTracking(cy, [{ id: '', direction: 'parents' }, { id: '', direction: 'parents' }], colors);
+    expect(cy.$('.faded, .track-mixed, .track-parents, .track2-children').length).toBe(0);
+    expect(cy.getElementById('b').data('trackMixColor')).toBeUndefined();
   });
 });
 
