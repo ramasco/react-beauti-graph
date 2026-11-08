@@ -67,7 +67,13 @@ _The [quick start](#quick-start) example, with the_ Node to Display _list open._
 
 ## Install
 
-From the [GitHub release](https://github.com/ramasco/react-beauti-graph/releases/latest):
+From [npm](https://www.npmjs.com/package/react-beauti-graph) (latest version):
+
+```bash
+npm install react-beauti-graph@latest
+```
+
+Or from the [GitHub release](https://github.com/ramasco/react-beauti-graph/releases/latest):
 
 ```bash
 npm install https://github.com/ramasco/react-beauti-graph/releases/download/v1.3.1/react-beauti-graph-1.3.1.tgz
