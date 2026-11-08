@@ -25,7 +25,7 @@ export default defineConfig({
     },
     rolldownOptions: {
       // Installed by the app using the library, not bundled
-      external: [/^react($|\/)/, /^react-dom($|\/)/, /^cytoscape($|\/)/],
+      external: [/^react($|\/)/, /^react-dom($|\/)/, /^cytoscape(-svg)?($|\/)/],
       output: {
         // Lets Next.js (App Router) use the component directly
         banner: "'use client';",

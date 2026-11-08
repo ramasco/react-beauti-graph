@@ -5,6 +5,7 @@ import type { Connections, GraphElement, NodeGroups, NodeRef } from '../src/grap
 import {
   REPORT_NODE,
   applyLayout,
+  downloadSvg,
   buildGraph,
   compareNames,
   getNodeSize,
@@ -670,5 +671,36 @@ describe('selected node color', () => {
 
   it('takes the color as a parameter', () => {
     expect(overlayOf(makeStyles({ selectedColor: '#123456' }))).toBe('#123456');
+  });
+});
+
+describe('downloadSvg', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('registers cy.svg() and downloads the markup as graph.svg', async () => {
+    const cy = cytoscape({ headless: true, elements: [{ data: { id: 'a' } }] });
+    expect(typeof (cy as unknown as { svg: unknown }).svg).toBe('function');
+
+    let blob: Blob | undefined;
+    URL.createObjectURL = vi.fn((b: Blob | MediaSource) => {
+      blob = b as Blob;
+      return 'blob:test';
+    });
+    const revoke = vi.fn();
+    URL.revokeObjectURL = revoke;
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    const svgSpy = vi.fn(() => '<svg></svg>');
+    (cy as unknown as { svg: unknown }).svg = svgSpy;
+
+    downloadSvg(cy);
+
+    expect(svgSpy).toHaveBeenCalledWith({ full: true, scale: 1 });
+    expect(blob?.type).toBe('image/svg+xml');
+    expect(await blob?.text()).toBe('<svg></svg>');
+    expect(click).toHaveBeenCalledOnce();
+    expect(revoke).toHaveBeenCalledWith('blob:test');
+    cy.destroy();
   });
 });

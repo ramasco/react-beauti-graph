@@ -4,7 +4,7 @@
 
 A React component for drawing report dependency graphs with [Cytoscape](https://js.cytoscape.org/).
 Give it your reports, the groups they belong to and the connections between them; it draws the graph
-on a grid and adds search, tracing of parents and children, a details panel and clipboard export.
+on a grid and adds search, tracing of parents and children, a details panel, clipboard export and SVG export.
 
 ![react-beauti-graph example: reports r001 and r002 in a Sales group joined by a two-way arrow, an arrow from r002 to r003 in a Finance group, and the Node to Display list open with ALL, r001, r002 and r003](https://raw.githubusercontent.com/ramasco/react-beauti-graph/main/docs/example.jpg)
 
@@ -40,10 +40,18 @@ _The [quick start](#quick-start) example, with the_ Node to Display _list open._
 - **Show Dependency 1 and 2**: highlight the whole chain of parents or children of a report in two colors, and dim the rest
 - **Details panel** (double click): the report, its group, its parents and children, one level or all levels; click a name to jump to it
 - **Save to clipboard** (right click): copies the same information as the details panel
+- **Export SVG** button: downloads the whole graph as a vector `graph.svg` file (a static image, not interactive)
 - **Text size buttons** (− / +) for the top row, the details panel and the graph
 - **Configurable** colors, text sizes and grid spacing
 
 ## Release notes
+
+### 1.3.1
+
+- **Export SVG**: a blue button at the right end of the top row saves the whole graph (not only the visible part) as `graph.svg`, using [`cytoscape-svg`](https://github.com/kinimesi/cytoscape-svg), which is now a dependency. The graph is still drawn on canvas; the SVG is an export only.
+- **Top row layout**: the text size dropdown with − / + and _Export SVG_ sit together at the right end of the row, after the _?_ help
+- **`downloadSvg(cy)`**: the same export, available in code (takes a Cytoscape core instance)
+- Typecheck, lint, format check and all 85 tests pass (`npm run check`)
 
 ### 1.3.0
 
@@ -62,7 +70,7 @@ _The [quick start](#quick-start) example, with the_ Node to Display _list open._
 From the [GitHub release](https://github.com/ramasco/react-beauti-graph/releases/latest):
 
 ```bash
-npm install https://github.com/ramasco/react-beauti-graph/releases/download/v1.3.0/react-beauti-graph-1.3.0.tgz
+npm install https://github.com/ramasco/react-beauti-graph/releases/download/v1.3.1/react-beauti-graph-1.3.1.tgz
 ```
 
 Requires React 18 or newer. Cytoscape is installed automatically.
@@ -282,6 +290,7 @@ at the graph. Pick what to resize in the dropdown, then click **−** or **+**:
 | _Parents / Children_                                    | Which chain the _Show Dependency_ next to it follows. Disabled while nothing is tracked.                                                                                                          |
 | _Font Top Panel / Font Right Panel / Font Graph Panel_  | Dropdown that picks which text the next two buttons resize: the top row, the details panel, or the labels and boxes of the graph.                                                                 |
 | _−_ and _+_                                             | Make the chosen text 2px smaller or larger (from 8px smaller to 16px larger than the configured size). Each area keeps its own size; they reset when the page is reloaded.                        |
+| _Export SVG_                                            | Downloads the whole graph as `graph.svg` (all reports and groups, whatever the zoom). The file is a static image: no search, details or highlighting.                                             |
 | _?_                                                     | Short help.                                                                                                                                                                                       |
 
 In all search boxes, use the arrow keys and Enter to pick, Escape to close the list, and × to clear.
@@ -323,6 +332,7 @@ Building blocks used by the component, for building your own UI:
 | `NodeSearch`                    | The search box: `<NodeSearch options={[{ id, label }]} selectedId={id} onSelect={(id) => …} noneLabel="ALL" />`. `''` means no node. Add `onToggleVisible={(id) => …}` and `hiddenIds={new Set([...])}` to show a checkbox next to each node. |
 | `getNodeInfo(node, allLevels?)` | For a Cytoscape node: `{ id, name, group, parents, children }` (parents and children sorted by name). With `allLevels` set to `true`, the lists hold every ancestor and descendant instead of the direct ones.                                |
 | `formatNodeInfo(info)`          | The clipboard text for the result of `getNodeInfo`.                                                                                                                                                                                           |
+| `downloadSvg(cy)`               | Downloads the whole graph of a Cytoscape core instance as `graph.svg`.                                                                                                                                                                        |
 
 ## Development
 

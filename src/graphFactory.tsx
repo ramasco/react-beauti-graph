@@ -11,6 +11,8 @@ import { useEffect, useId, useRef, useState } from 'react';
 import type { CSSProperties, FC } from 'react';
 import cytoscape from 'cytoscape';
 import type { StylesheetJson } from 'cytoscape';
+// @ts-expect-error cytoscape-svg ships no type declarations
+import svg from 'cytoscape-svg';
 
 // Defaults live in default_setting.ts; re-exported so they stay importable from here
 import {
@@ -29,6 +31,23 @@ import {
 } from './default_setting.ts';
 
 export * from './default_setting.ts';
+
+// cytoscape-svg adds cy.svg(); it has no types, so the method is typed here
+cytoscape.use(svg as cytoscape.Ext);
+interface SvgExporter {
+  svg(options: { full: boolean; scale: number }): string;
+}
+
+/** Downloads the whole graph as a static SVG file named graph.svg. */
+export function downloadSvg(cy: cytoscape.Core): void {
+  const markup = (cy as unknown as SvgExporter).svg({ full: true, scale: 1 });
+  const url = URL.createObjectURL(new Blob([markup], { type: 'image/svg+xml' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'graph.svg';
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 // The + / - buttons change the text size of the chosen area by this many pixels per click,
 // within these limits. Sizes of the graph text (px) before the buttons change them.
@@ -1239,6 +1258,12 @@ export function create_graph(
       });
     };
 
+    const exportSvg = (): void => {
+      if (cyRef.current) {
+        downloadSvg(cyRef.current);
+      }
+    };
+
     // Checkbox next to a report in "Node to Display": show or hide it
     const toggleVisible = (id: string): void => {
       setHiddenIds((prev) => {
@@ -1487,6 +1512,9 @@ export function create_graph(
               </button>
             ))}
           </span>
+          <button type="button" className="export-svg" onClick={exportSvg}>
+            Export SVG
+          </button>
         </div>
         <div className="graph-area">
           <div ref={containerRef} className="cy-container" />
