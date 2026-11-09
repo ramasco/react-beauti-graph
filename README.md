@@ -23,6 +23,7 @@ _The [quick start](#quick-start) example, with the_ Node to Display _list open._
   - [Node to Display and the details panel](#node-to-display-and-the-details-panel)
   - [Filter out nodes](#filter-out-nodes)
   - [Show Dependency](#show-dependency)
+  - [Find common dependencies in two graphs](#find-common-dependencies-in-two-graphs)
   - [Text size](#text-size)
   - [All controls](#all-controls)
 - [Styling](#styling)
@@ -45,6 +46,11 @@ _The [quick start](#quick-start) example, with the_ Node to Display _list open._
 - **Configurable** colors, text sizes and grid spacing
 
 ## Release notes
+
+### 1.3.2
+
+- **README**: new chapter [Find common dependencies in two graphs](#find-common-dependencies-in-two-graphs): pick a chain in _Show Dependency 1_ and one in _Show Dependency 2_, and the common reports and arrows show in orange, with a new screenshot
+- No code changes
 
 ### 1.3.1
 
@@ -261,6 +267,20 @@ chains are drawn in the common color (`commonColor`, orange by default).
 ![Tracking the parents of r002: r001, r002 and the two-way arrow between them in green, r003 and its arrow dimmed](https://raw.githubusercontent.com/ramasco/react-beauti-graph/main/docs/example_track_node.jpg)
 
 _Parents of `r002`, with_ Show Groups _and_ Add Group to Node Name _turned off._
+
+### Find common dependencies in two graphs
+
+To see which reports two reports have in common upstream or downstream:
+
+1. In _Show Dependency 1_, pick the first report, then choose **Parents** or **Children** to draw its chain (its subgraph).
+2. In _Show Dependency 2_, pick the second report, then choose **Parents** or **Children** to draw its chain.
+3. The reports and arrows that belong to both chains are drawn in orange (`commonColor`): these are the common nodes. Everything else on the two chains keeps its own color, and the rest is dimmed.
+
+Use _Show Nothing_ in either box to clear its chain. Double click an orange report to list its parents and children in the details panel.
+
+![Two dependencies on the 100-report sample: the parents of r044 in green, the parents of r023 in yellow, and the reports on both chains in orange](https://raw.githubusercontent.com/ramasco/react-beauti-graph/main/docs/example_common_nodes_from_two_dependencies.jpg)
+
+_Common nodes from two dependencies, on the 100-report sample: the parents of `r044` (Show Dependency 1, green) and the parents of `r023` (Show Dependency 2, yellow). The reports and arrows on both chains are drawn in orange._
 
 ### Text size
 
