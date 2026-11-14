@@ -3,3 +3,4 @@ node_modules
 release
 docs
 package-lock.json
+.claude

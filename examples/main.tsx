@@ -2,7 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
 import 'react-beauti-graph/style.css';
-import DemoApp from './DemoApp';
+import App from './App';
 
 const rootElement = document.getElementById('root');
 if (rootElement === null) {
@@ -11,6 +11,6 @@ if (rootElement === null) {
 
 createRoot(rootElement).render(
   <StrictMode>
-    <DemoApp />
+    <App />
   </StrictMode>
 );

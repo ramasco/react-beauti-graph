@@ -1,5 +1,5 @@
 // Builds the npm library code into dist/. The types are added by `npm run build:lib` (tsc + scripts/make-cts.mjs).
-import { copyFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
@@ -8,8 +8,15 @@ export default defineConfig({
     react(),
     {
       name: 'copy-styles',
+      // dist/style.css = the library styles, with the base styles React Flow needs put in place
+      // of the @import that the source css uses (so the example app can load it directly)
       closeBundle() {
-        copyFileSync('src/react-beauti-graph.css', 'dist/style.css');
+        const flowBase = readFileSync('node_modules/@xyflow/react/dist/base.css', 'utf8');
+        const own = readFileSync('src/react-beauti-graph.css', 'utf8');
+        writeFileSync(
+          'dist/style.css',
+          own.replace("@import '@xyflow/react/dist/base.css';", () => flowBase)
+        );
       },
     },
   ],
@@ -25,7 +32,7 @@ export default defineConfig({
     },
     rolldownOptions: {
       // Installed by the app using the library, not bundled
-      external: [/^react($|\/)/, /^react-dom($|\/)/, /^cytoscape(-svg)?($|\/)/],
+      external: [/^react($|\/)/, /^react-dom($|\/)/, /^@xyflow\/react($|\/)/],
       output: {
         // Lets Next.js (App Router) use the component directly
         banner: "'use client';",

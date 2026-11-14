@@ -1,5 +1,5 @@
 // Smoke test in a real browser: builds nothing, serves examples/dist and checks that the graph is
-// really drawn (node sizes are computed and the arrows are painted on the canvas).
+// really drawn (report boxes on the canvas and as big as their text, arrows drawn).
 // Needs Chrome or Edge: set CHROME_PATH if it is not in a usual place. Run: npm run smoke
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -52,50 +52,95 @@ try {
   const pageErrors = [];
   page.on('pageerror', (error) => pageErrors.push(error.message));
   await page.goto(URL);
-  await page.waitForSelector('.cy-container canvas');
+  await page.waitForSelector('.react-flow__node-report');
   await page.waitForTimeout(1000);
 
   const result = await page.evaluate(() => {
-    const cy = document.querySelector('.cy-container')._cyreg.cy;
-    const reports = cy.nodes('[class = "macromolecule"]');
-    const edges = cy.edges();
-    // Is anything painted in a 7x7 square around the middle of each arrow?
-    const painted = edges.map((edge) => {
-      const mid = edge.renderedMidpoint();
-      const ratio = window.devicePixelRatio;
-      return [...document.querySelectorAll('.cy-container canvas')].some((canvas) => {
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          return false;
-        }
-        const data = ctx.getImageData(
-          Math.round(mid.x * ratio) - 3,
-          Math.round(mid.y * ratio) - 3,
-          7,
-          7
-        ).data;
-        return data.some((value, index) => index % 4 === 3 && value > 0);
-      });
-    });
+    const reports = [...document.querySelectorAll('.react-flow__node-report')];
+    const groups = [...document.querySelectorAll('.react-flow__node-group')];
+    const arrows = [...document.querySelectorAll('.react-flow__edge')];
+    const flow = document.querySelector('.react-flow')?.getBoundingClientRect();
+    const sizeOf = (element) => {
+      const box = element.getBoundingClientRect();
+      return { width: box.width, height: box.height, x: box.x, y: box.y };
+    };
+    // Is the box really on the canvas, with a size?
+    const onCanvas = (box) =>
+      flow !== undefined &&
+      box.width > 0 &&
+      box.height > 0 &&
+      box.x + box.width > flow.x &&
+      box.x < flow.x + flow.width &&
+      box.y + box.height > flow.y &&
+      box.y < flow.y + flow.height;
+    // Does the report box fit its text (no clipped label)?
+    const clippedLabels = reports.filter((node) => {
+      const box = node.querySelector('.rbg-report');
+      return box !== null && box.scrollWidth > box.clientWidth + 1;
+    }).length;
+    // An arrow is drawn when it has a line with a length (or a loop curve) and arrowhead
+    const drawnArrows = arrows.filter((arrow) => {
+      const line = arrow.querySelector('line');
+      const loop = arrow.querySelector('path');
+      if (line !== null) {
+        const box = line.getBoundingClientRect();
+        return box.width + box.height > 1 && arrow.querySelectorAll('path').length >= 1;
+      }
+      return loop !== null && sizeOf(loop).width > 0;
+    }).length;
     return {
       reportCount: reports.length,
-      edgeCount: edges.length,
-      badSizes: reports.filter((n) => !/^\d+(\.\d+)?px$/.test(n.style('width'))).length,
-      unpaintedEdges: painted.filter((ok) => !ok).length,
+      groupCount: groups.length,
+      arrowCount: arrows.length,
+      offCanvasReports: reports.filter((node) => !onCanvas(sizeOf(node))).length,
+      clippedLabels,
+      undrawnArrows: arrows.length - drawnArrows,
     };
   });
 
   if (result.reportCount === 0) {
-    failures.push('no report nodes in the graph');
+    failures.push('no report boxes in the graph');
   }
-  if (result.edgeCount === 0) {
+  if (result.arrowCount === 0) {
     failures.push('no arrows in the graph');
   }
-  if (result.badSizes > 0) {
-    failures.push(`${result.badSizes} report boxes have no computed size`);
+  if (result.offCanvasReports > 0) {
+    failures.push(`${result.offCanvasReports} report boxes are not on the canvas`);
   }
-  if (result.unpaintedEdges > 0) {
-    failures.push(`${result.unpaintedEdges} arrows are not painted on the canvas`);
+  if (result.clippedLabels > 0) {
+    failures.push(`${result.clippedLabels} report boxes are smaller than their text`);
+  }
+  if (result.undrawnArrows > 0) {
+    failures.push(`${result.undrawnArrows} arrows are not drawn`);
+  }
+  // Dragging a report moves it (and the group box and arrows follow); Reset layout puts it back
+  const report = page.locator('.rbg-report').first();
+  const before = await report.boundingBox();
+  if (before === null) {
+    failures.push('cannot find a report box to drag');
+  } else {
+    const startX = before.x + before.width / 2;
+    const startY = before.y + before.height / 2;
+    await page.mouse.move(startX, startY);
+    await page.mouse.down();
+    await page.mouse.move(startX + 40, startY + 40, { steps: 4 });
+    await page.mouse.move(startX + 80, startY + 80, { steps: 4 });
+    await page.mouse.up();
+    await page.waitForTimeout(300);
+    const after = await report.boundingBox();
+    if (after === null || Math.abs(after.x - before.x) < 40 || Math.abs(after.y - before.y) < 40) {
+      failures.push('a report box did not move when dragged');
+    }
+    const arrowsAfter = await page.locator('.react-flow__edge line, .react-flow__edge path').count();
+    if (arrowsAfter === 0) {
+      failures.push('the arrows disappeared after a report was dragged');
+    }
+    await page.getByRole('button', { name: 'Reset layout' }).click();
+    await page.waitForTimeout(300);
+    const reset = await report.boundingBox();
+    if (reset === null || Math.abs(reset.x - before.x) > 2 || Math.abs(reset.y - before.y) > 2) {
+      failures.push('Reset layout did not put the report back');
+    }
   }
   failures.push(...pageErrors.map((message) => `page error: ${message}`));
   console.log('smoke:', JSON.stringify(result));

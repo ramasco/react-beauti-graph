@@ -22,7 +22,7 @@ const SAMPLES = [
   },
 ];
 
-export default function DemoApp(): React.JSX.Element {
+export default function App(): React.JSX.Element {
   const [sampleId, setSampleId] = useState(SAMPLES[0]?.id ?? '');
   const Graph = (SAMPLES.find((s) => s.id === sampleId) ?? SAMPLES[0])?.Graph;
 

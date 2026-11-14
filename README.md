@@ -2,7 +2,7 @@
 
 **react-beauti-graph by Antonio Ramasco**
 
-A React component for drawing report dependency graphs with [Cytoscape](https://js.cytoscape.org/).
+A React component for drawing report dependency graphs with [React Flow](https://reactflow.dev/).
 Give it your reports, the groups they belong to and the connections between them; it draws the graph
 on a grid and adds search, tracing of parents and children, a details panel, clipboard export and SVG export.
 
@@ -33,7 +33,9 @@ _The [quick start](#quick-start) example, with the_ Node to Display _list open._
 
 ## Features
 
-- **Groups** drawn as dashed boxes around their reports; a report can be in several groups
+- **Groups** drawn as dashed boxes around their reports (React Flow sub flows); a report can be in several groups
+- **Drag and drop**: move a report, or a whole group box with its reports; the boxes and arrows follow
+- **Report boxes** as big as their text, drawn with React: sharp at any zoom, with keyboard focus and accessible markup
 - **Automatic grid layout** built from the groups, or your own layout row by row
 - **Arrows** for connections: `[a, b]` + `[b, a]` become one line with arrows at both ends; `[a, a]` is drawn as a loop
 - **Node to Display**: partial, case-insensitive search; jumps to the report and opens its details
@@ -46,6 +48,22 @@ _The [quick start](#quick-start) example, with the_ Node to Display _list open._
 - **Configurable** colors, text sizes and grid spacing
 
 ## Release notes
+
+### 2.0.0
+
+The graph is now drawn with [React Flow](https://reactflow.dev/) instead of Cytoscape, and the groups are React Flow
+sub flows (a group box that holds its reports).
+
+- **React Flow** replaces Cytoscape: reports and groups are React components, arrows are SVG; zoom, pan, fit and animated jumps to a report work as before
+- **Smaller install**: `cytoscape` and `cytoscape-svg` are gone; the only graph dependency is `@xyflow/react`
+- **Move boxes**: drag a report to move it, or drag a group box to move the group with all its reports; the group boxes and the arrows follow, and _Reset layout_ puts everything back
+- **Same screen, same options**: `create_graph(node_groups, direct_node_connections, [layout], [options])`, every option, the top row, the details panel, Show Dependency 1 and 2, the text size buttons and _Export SVG_ work as in 1.3
+- **Export SVG** is now written by the library from the same boxes and colors as the screen (what is dimmed or hidden stays so)
+- The graph logic (layout, parents and children, chains, hidden reports) is plain functions in `src/graph.ts`, tested without a browser; a smoke test draws the example app in Chrome
+- **Breaking:**
+  - `getNodeInfo(elements, id, allLevels?)` now takes the elements of the graph (from `buildGraph`) and a report id, not a Cytoscape node
+  - `downloadSvg(cy)` is replaced by `buildSvg(...)` and `downloadSvg(markup)`
+  - the report boxes are not Cytoscape elements any more, so Cytoscape CSS or style code no longer applies
 
 ### 1.3.2
 
@@ -82,10 +100,10 @@ npm install react-beauti-graph@latest
 Or from the [GitHub release](https://github.com/ramasco/react-beauti-graph/releases/latest):
 
 ```bash
-npm install https://github.com/ramasco/react-beauti-graph/releases/download/v1.3.1/react-beauti-graph-1.3.1.tgz
+npm install https://github.com/ramasco/react-beauti-graph/releases/download/v2.0.0/react-beauti-graph-2.0.0.tgz
 ```
 
-Requires React 18 or newer. Cytoscape is installed automatically.
+Requires React 18 or newer. React Flow (`@xyflow/react`) is installed automatically.
 
 Want to try it first? The example app in `examples/` runs the graph with sample data: see [Development](#development).
 
@@ -316,6 +334,7 @@ at the graph. Pick what to resize in the dropdown, then click **−** or **+**:
 | _Parents / Children_                                    | Which chain the _Show Dependency_ next to it follows. Disabled while nothing is tracked.                                                                                                          |
 | _Font Top Panel / Font Right Panel / Font Graph Panel_  | Dropdown that picks which text the next two buttons resize: the top row, the details panel, or the labels and boxes of the graph.                                                                 |
 | _−_ and _+_                                             | Make the chosen text 2px smaller or larger (from 8px smaller to 16px larger than the configured size). Each area keeps its own size; they reset when the page is reloaded.                        |
+| _Reset layout_                                          | Appears once a box has been moved: puts every box back where the layout placed it. Moves are not saved: reloading the page also resets them.                                                      |
 | _Export SVG_                                            | Downloads the whole graph as `graph.svg` (all reports and groups, whatever the zoom). The file is a static image: no search, details or highlighting.                                             |
 | _?_                                                     | Short help.                                                                                                                                                                                       |
 
@@ -323,12 +342,14 @@ In all search boxes, use the arrow keys and Enter to pick, Escape to close the l
 
 **On the graph**
 
-| Action                                          | What it does                                                                                        |
-| ----------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| Double click a report                           | Opens the details panel: group, parent reports and child reports. Click a name there to jump to it. |
-| Right click a report                            | _Save to clipboard_: copies the same information as text.                                           |
-| _One level / All levels_ switch (details panel) | Lists only the direct parents and children, or the whole chains.                                    |
-| Scroll / drag                                   | Zoom / move the view.                                                                               |
+| Action                                          | What it does                                                                                                 |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Double click a report                           | Opens the details panel: group, parent reports and child reports. Click a name there to jump to it.          |
+| Right click a report                            | _Save to clipboard_: copies the same information as text.                                                    |
+| _One level / All levels_ switch (details panel) | Lists only the direct parents and children, or the whole chains.                                             |
+| Drag a report                                   | Moves it. The group box around it and the arrows follow. _Reset layout_ in the top row puts everything back. |
+| Drag a group box                                | Moves the group with all its reports.                                                                        |
+| Scroll / drag the background                    | Zoom / move the view.                                                                                        |
 
 When the window is too narrow, the top row continues on a second line.
 
@@ -347,20 +368,34 @@ in your own CSS, for example:
 }
 ```
 
+The boxes have their own classes you can style: `.rbg-report` (a report box), `.rbg-group` (a group box) and
+`.react-flow` (the canvas, see the [React Flow styling guide](https://reactflow.dev/learn/customization/theming)).
+The small _React Flow_ link at the bottom right of the canvas is React Flow's own attribution.
+
 Colors and text sizes are easier to change with the [options](#options); viewers can also resize the text with the buttons described in [Text size](#text-size).
 
 ## Other exports
 
 Building blocks used by the component, for building your own UI:
 
-| Export                          | Description                                                                                                                                                                                                                                   |
-| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `NodeSearch`                    | The search box: `<NodeSearch options={[{ id, label }]} selectedId={id} onSelect={(id) => …} noneLabel="ALL" />`. `''` means no node. Add `onToggleVisible={(id) => …}` and `hiddenIds={new Set([...])}` to show a checkbox next to each node. |
-| `getNodeInfo(node, allLevels?)` | For a Cytoscape node: `{ id, name, group, parents, children }` (parents and children sorted by name). With `allLevels` set to `true`, the lists hold every ancestor and descendant instead of the direct ones.                                |
-| `formatNodeInfo(info)`          | The clipboard text for the result of `getNodeInfo`.                                                                                                                                                                                           |
-| `downloadSvg(cy)`               | Downloads the whole graph of a Cytoscape core instance as `graph.svg`.                                                                                                                                                                        |
+| Export                                                        | Description                                                                                                                                                                                                                                     |
+| ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NodeSearch`                                                  | The search box: `<NodeSearch options={[{ id, label }]} selectedId={id} onSelect={(id) => …} noneLabel="ALL" />`. `''` means no node. Add `onToggleVisible={(id) => …}` and `hiddenIds={new Set([...])}` to show a checkbox next to each node.   |
+| `getNodeInfo(elements, id, allLevels?)`                       | For the report `id` in the elements from `buildGraph`: `{ id, name, group, parents, children }` (parents and children sorted by name). With `allLevels` set to `true`, the lists hold every ancestor and descendant instead of the direct ones. |
+| `buildGraph(node_groups, direct_node_connections, extraIds?)` | The elements of the graph (groups, reports and arrows) that `getNodeInfo` reads.                                                                                                                                                                |
+| `formatNodeInfo(info)`                                        | The clipboard text for the result of `getNodeInfo`.                                                                                                                                                                                             |
+| `buildSvg(groups, reports, edges)`, `downloadSvg(markup)`     | Makes the text of a static SVG picture from boxes and arrows, and downloads SVG text as `graph.svg`. The _Export SVG_ button uses both.                                                                                                         |
 
 ## Development
+
+### How it is built
+
+`create_graph` turns your groups and connections into plain data first (`src/graph.ts`: elements, grid layout,
+box sizes, parents and children, the tracked chains, colors and arrow geometry), then draws it with React Flow
+(`src/createGraph.tsx`): every report is a React component sized to its text, every group is a React Flow sub flow
+around its reports, and every arrow is an SVG line from the border of one box to the border of the other.
+The logic has no drawing in it, so it is tested without a browser (`tests/`); `npm run smoke` draws the example
+app in Chrome and checks that the boxes and arrows are really there.
 
 The library is written in TypeScript (strict mode); its type definitions are generated from the source when
 you build the package. Code is type-checked and compiled with TypeScript 7 (the `typescript7` package); `typescript` 6 stays
@@ -398,21 +433,23 @@ On Windows, `examples/run.cmd` installs the example's dependencies the first tim
 `npm run dev` does the same as `cd examples && npm run dev`. While developing, the name `react-beauti-graph`
 points at the library source in `src/` (see `examples/vite.config.mjs`), so library changes show up at once.
 
-| Path                                                             | Contents                                                                           |
-| ---------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `src/graphFactory.tsx`                                           | The library: `create_graph`, layout, styles, search box                            |
-| `src/default_setting.ts`                                         | Default colors, text sizes and layout (the `DEFAULT_*` values)                     |
-| `src/react-beauti-graph.css`                                     | The library styles (published as `style.css`)                                      |
-| `src/index.ts`                                                   | Public entry point of the package (the `.d.ts` types are generated into `dist/`)   |
-| `tests/`                                                         | `graphFactory.test.ts`, `NodeSearch.test.tsx`                                      |
-| `tsconfig.json`, `tsconfig.build.json`                           | TypeScript settings (strict), and the settings that generate the types             |
-| `scripts/`                                                       | `smoke.mjs` (browser smoke test) and `make-cts.mjs` (finishes the type files)      |
-| `.github/workflows/ci.yml`                                       | GitHub Actions: runs the check, the package build and the smoke test on every push |
-| `vite.lib.config.mjs`, `vitest.config.mjs`                       | Build of the npm package, and the test setup                                       |
-| `examples/DemoApp.tsx`                                           | The example page, with the _Demo data_ dropdown                                    |
-| `examples/main.tsx`, `examples/index.html`, `examples/index.css` | The Vite entry that mounts the example page, and its page styles                   |
-| `examples/samples/`                                              | Example data: a small example and 100 reports in 5 groups                          |
-| `examples/package.json`, `examples/vite.config.mjs`              | The example app's own dependencies and Vite setup                                  |
+| Path                                                             | Contents                                                                                                          |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `src/createGraph.tsx`                                            | `create_graph`: the React component (React Flow canvas, top row, details panel)                                   |
+| `src/graph.ts`                                                   | The graph without drawing: elements, grid layout, box sizes, parents and children, chains, colors, arrow geometry |
+| `src/NodeSearch.tsx`, `src/svg.ts`                               | The search box, and the SVG export                                                                                |
+| `src/default_setting.ts`                                         | Default colors, text sizes and layout (the `DEFAULT_*` values)                                                    |
+| `src/react-beauti-graph.css`                                     | The library styles (published as `style.css`)                                                                     |
+| `src/index.ts`                                                   | Public entry point of the package (the `.d.ts` types are generated into `dist/`)                                  |
+| `tests/`                                                         | `graph.test.ts`, `NodeSearch.test.tsx`                                                                            |
+| `tsconfig.json`, `tsconfig.build.json`                           | TypeScript settings (strict), and the settings that generate the types                                            |
+| `scripts/`                                                       | `smoke.mjs` (browser smoke test) and `make-cts.mjs` (finishes the type files)                                     |
+| `.github/workflows/ci.yml`                                       | GitHub Actions: runs the check, the package build and the smoke test on every push                                |
+| `vite.lib.config.mjs`, `vitest.config.mjs`                       | Build of the npm package, and the test setup                                                                      |
+| `examples/App.tsx`                                               | The example page, with the _Demo data_ dropdown                                                                   |
+| `examples/main.tsx`, `examples/index.html`, `examples/index.css` | The Vite entry that mounts the example page, and its page styles                                                  |
+| `examples/samples/`                                              | Example data: a small example and 100 reports in 5 groups                                                         |
+| `examples/package.json`, `examples/vite.config.mjs`              | The example app's own dependencies and Vite setup                                                                 |
 
 In the example app, switch between the two samples with the _Demo data_ dropdown at the top of the page.
 

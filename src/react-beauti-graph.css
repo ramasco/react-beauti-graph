@@ -1,3 +1,5 @@
+@import '@xyflow/react/dist/base.css';
+
 /* react-beauti-graph styles: everything is scoped under .rbg-graph */
 
 .rbg-graph {
@@ -24,7 +26,7 @@
   z-index: 10;
 }
 
-/* A label with its box (and the Track node switch): kept on one line */
+/* A label with its box (and the Show Dependency switch): kept on one line */
 .rbg-graph .control-group {
   display: inline-flex;
   align-items: center;
@@ -106,7 +108,7 @@
   position: relative;
 }
 
-/* Track node: Parents [switch] Children */
+/* Show Dependency: Parents [switch] Children */
 .rbg-graph .track-switch {
   display: inline-flex;
   align-items: center;
@@ -159,7 +161,7 @@
   left: 18px;
 }
 
-/* Track node is "No tracking": nothing to track, the switch is greyed out */
+/* Show Dependency is on "Show Nothing": nothing to follow, the switch is greyed out */
 .rbg-graph .track-switch.disabled {
   opacity: 0.4;
 }
@@ -248,11 +250,71 @@
   display: flex;
 }
 
-.rbg-graph .cy-container {
+.rbg-graph .rbg-flow {
   flex: 1;
   min-height: 0;
   min-width: 0;
   background: #fff;
+}
+
+/* A report box: as big as its text (the size is set on the React Flow node) */
+.rbg-graph .rbg-report {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--rbg-graph-color, #0066cc);
+  background: #fff;
+  color: var(--rbg-graph-color, #0066cc);
+  font-family: var(--rbg-label-font-family, sans-serif);
+  line-height: 1.2;
+  white-space: nowrap;
+  user-select: none;
+  cursor: grab;
+}
+
+/* Moving a box: the hand closes while it is dragged */
+.rbg-graph .react-flow__node.dragging .rbg-report {
+  cursor: grabbing;
+}
+
+/* A group box: dashed frame around its reports, the name on top */
+.rbg-graph .rbg-group {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  border: 2px dashed var(--rbg-graph-color, #0066cc);
+  background: color-mix(in srgb, var(--rbg-group-fill, #f0f8ff) 50%, transparent);
+  color: var(--rbg-graph-color, #0066cc);
+  font-family: var(--rbg-label-font-family, sans-serif);
+  text-align: center;
+  user-select: none;
+}
+
+.rbg-graph .rbg-group-label {
+  display: block;
+  margin-top: 4px;
+  font-weight: bold;
+  line-height: 1.2;
+}
+
+/* The handles only exist so React Flow draws the arrows: nothing to see or click */
+.rbg-graph .rbg-handle {
+  width: 1px;
+  height: 1px;
+  min-width: 0;
+  min-height: 0;
+  border: 0;
+  background: transparent;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* React Flow draws its own corner link: keep it small and out of the way */
+.rbg-graph .react-flow__attribution {
+  font-size: 10px;
 }
 
 /* Right details panel text size comes from create_graph options (rightDisplayFontSize), set as a CSS variable */
@@ -354,6 +416,21 @@
 /* One level / All levels switch under Group in the details panel */
 .rbg-graph .node-info-panel .level-switch {
   margin: 4px 0 8px;
+}
+
+.rbg-graph .reset-layout {
+  padding: 0.3em 0.9em;
+  font-size: 1em;
+  border: 1px solid #0066cc;
+  border-radius: 8px;
+  background: #fff;
+  color: #0066cc;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rbg-graph .reset-layout:hover {
+  background: #e8f0fb;
 }
 
 .rbg-graph .export-svg {

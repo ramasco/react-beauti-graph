@@ -8,7 +8,7 @@ import prettier from 'eslint-config-prettier';
 import tseslint from 'typescript-eslint';
 
 export default [
-  { ignores: ['dist/', 'examples/dist/', '**/node_modules/', 'release/', 'docs/'] },
+  { ignores: ['dist/', 'examples/dist/', '**/node_modules/', 'release/', 'docs/', '.claude/'] },
   js.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
   ...tseslint.configs.stylisticTypeChecked,
