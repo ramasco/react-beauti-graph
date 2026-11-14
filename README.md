@@ -55,6 +55,12 @@ _The [quick start](#quick-start) example, with the_ Node to Display _list open._
 
 ## Release notes
 
+### 2.0.1 (2026-11-14)
+
+- **Try it online**: an _Open in StackBlitz_ button (top of this page) opens the example app in the browser, with the sample data, every control and the code to edit
+- **Example app** in `examples/` now works on its own: it installs `react-beauti-graph` from npm (inside this repository it still uses the library source)
+- No code changes in the package: the same library as 2.0.0
+
 ### 2.0.0 (2026-11-14)
 
 The graph is now drawn with [React Flow](https://reactflow.dev/) instead of Cytoscape, and the groups are React Flow
@@ -130,7 +136,7 @@ npm install react-beauti-graph@latest
 Or from the [GitHub release](https://github.com/ramasco/react-beauti-graph/releases/latest):
 
 ```bash
-npm install https://github.com/ramasco/react-beauti-graph/releases/download/v2.0.0/react-beauti-graph-2.0.0.tgz
+npm install https://github.com/ramasco/react-beauti-graph/releases/download/v2.0.1/react-beauti-graph-2.0.1.tgz
 ```
 
 Requires React 18 or newer. React Flow (`@xyflow/react`) is installed automatically.

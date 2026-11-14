@@ -1,6 +1,6 @@
 {
   "name": "react-beauti-graph",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "React graph component built on React Flow: groups, grid layout, two-way arrows, search, details panel and clipboard export.",
   "keywords": [
     "react",
