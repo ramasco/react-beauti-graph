@@ -55,6 +55,13 @@ _The [quick start](#quick-start) example, with the_ Node to Display _list open._
 
 ## Release notes
 
+### 2.0.2 (2026-11-14)
+
+- **Final clean-up of 2.0**: all dependencies on their latest versions (React Flow 12.12.1, Vite 8.3.8, ...), no unused packages, and a smaller `.gitignore`
+- **StackBlitz**: the _Open in StackBlitz_ link now opens the example with `?file=App.tsx`, which loads reliably (the plain folder link could fail with "Something went wrong with this repository")
+- **Type files**: three internal types are no longer exported from `src/graph.ts`; the public API is unchanged
+- Same behavior as 2.0.0 and 2.0.1
+
 ### 2.0.1 (2026-11-14)
 
 - **Try it online**: an _Open in StackBlitz_ button (top of this page) opens the example app in the browser, with the sample data, every control and the code to edit
@@ -136,7 +143,7 @@ npm install react-beauti-graph@latest
 Or from the [GitHub release](https://github.com/ramasco/react-beauti-graph/releases/latest):
 
 ```bash
-npm install https://github.com/ramasco/react-beauti-graph/releases/download/v2.0.1/react-beauti-graph-2.0.1.tgz
+npm install https://github.com/ramasco/react-beauti-graph/releases/download/v2.0.2/react-beauti-graph-2.0.2.tgz
 ```
 
 Requires React 18 or newer. React Flow (`@xyflow/react`) is installed automatically.

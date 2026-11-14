@@ -37,7 +37,7 @@ export type Connections = [string, string][];
 export type Layout = string[][];
 
 /** Data of a graph element (a group box, a report or an arrow) */
-export interface ElementData {
+interface ElementData {
   id: string;
   class?: string;
   label?: string;
@@ -737,7 +737,7 @@ export function edgeAppearance(classes: string[], colors: TrackColors): Appearan
 export const GROUP_FILL = GROUP_BACKGROUND_COLOR;
 
 /** A report placed on the canvas. */
-export interface PlacedReport {
+interface PlacedReport {
   id: string;
   label: string;
   parent: string | undefined;
@@ -745,7 +745,7 @@ export interface PlacedReport {
 }
 
 /** A group box placed on the canvas. */
-export interface PlacedGroup {
+interface PlacedGroup {
   id: string;
   label: string;
   rect: Rect;
