@@ -6,6 +6,11 @@ A React component for drawing report dependency graphs with [React Flow](https:/
 Give it your reports, the groups they belong to and the connections between them; it draws the graph
 on a grid and adds search, tracing of parents and children, a details panel, clipboard export and SVG export.
 
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/ramasco/react-beauti-graph/tree/main/examples)
+
+**Try it online:** the button opens the [example app](https://github.com/ramasco/react-beauti-graph/tree/main/examples) in StackBlitz, with the sample data, every control and the
+code to edit. No install needed.
+
 ![react-beauti-graph example: reports r001 and r002 in a Sales group joined by a two-way arrow, an arrow from r002 to r003 in a Finance group, and the Node to Display list open with ALL, r001, r002 and r003](https://raw.githubusercontent.com/ramasco/react-beauti-graph/main/docs/example.jpg)
 
 _The [quick start](#quick-start) example, with the_ Node to Display _list open._
@@ -130,7 +135,7 @@ npm install https://github.com/ramasco/react-beauti-graph/releases/download/v2.0
 
 Requires React 18 or newer. React Flow (`@xyflow/react`) is installed automatically.
 
-Want to try it first? The example app in `examples/` runs the graph with sample data: see [Development](#development).
+Want to try it first? [Open the example app in StackBlitz](https://stackblitz.com/github/ramasco/react-beauti-graph/tree/main/examples), or run it from `examples/` (see [Development](#development)).
 
 ## Quick start
 
