@@ -14,6 +14,7 @@ _The [quick start](#quick-start) example, with the_ Node to Display _list open._
 
 - [Features](#features)
 - [Release notes](#release-notes)
+  - [Upgrading from 1.x to 2.0](#upgrading-from-1x-to-20)
 - [Install](#install)
 - [Quick start](#quick-start)
   - [Frameworks](#frameworks)
@@ -49,7 +50,7 @@ _The [quick start](#quick-start) example, with the_ Node to Display _list open._
 
 ## Release notes
 
-### 2.0.0
+### 2.0.0 (2026-11-14)
 
 The graph is now drawn with [React Flow](https://reactflow.dev/) instead of Cytoscape, and the groups are React Flow
 sub flows (a group box that holds its reports).
@@ -64,6 +65,30 @@ sub flows (a group box that holds its reports).
   - `getNodeInfo(elements, id, allLevels?)` now takes the elements of the graph (from `buildGraph`) and a report id, not a Cytoscape node
   - `downloadSvg(cy)` is replaced by `buildSvg(...)` and `downloadSvg(markup)`
   - the report boxes are not Cytoscape elements any more, so Cytoscape CSS or style code no longer applies
+
+### Upgrading from 1.x to 2.0
+
+Most apps change nothing: `create_graph(node_groups, direct_node_connections, [layout], [options])`, the options, the
+controls and `import 'react-beauti-graph/style.css'` are the same. Check these three things:
+
+1. **`getNodeInfo`** reads the elements of the graph instead of a Cytoscape node:
+
+   ```js
+   // 1.x
+   const info = getNodeInfo(cy.getElementById('r001'));
+   // 2.0
+   const elements = buildGraph(node_groups, direct_node_connections);
+   const info = getNodeInfo(elements, 'r001'); // or getNodeInfo(elements, 'r001', true) for all levels
+   ```
+
+2. **`downloadSvg(cy)`** is gone. The _Export SVG_ button still works. To make the picture yourself, use
+   `buildSvg(groups, reports, edges)` and `downloadSvg(markup)` (see [Other exports](#other-exports)).
+3. **Your own CSS**: the boxes are no longer drawn by Cytoscape, so anything that styled or read the Cytoscape canvas
+   no longer applies. Style `.rbg-report` and `.rbg-group` instead (see [Styling](#styling)). You do not need to import
+   React Flow's styles: `style.css` already contains them.
+
+Nothing else changes in your code. The install no longer pulls in `cytoscape` and `cytoscape-svg`; React Flow
+(`@xyflow/react`) comes with the package instead.
 
 ### 1.3.2
 
