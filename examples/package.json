@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "react": "^19.3.0",
-    "react-beauti-graph": "^2.0.2",
+    "react-beauti-graph": "^2.1.0",
     "react-dom": "^19.3.0"
   },
   "devDependencies": {
