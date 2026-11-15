@@ -31,6 +31,7 @@ _The [quick start](#quick-start) example, with the_ Node to Display _list open._
   - [Show Dependency](#show-dependency)
   - [Find common dependencies in two graphs](#find-common-dependencies-in-two-graphs)
   - [Text size](#text-size)
+  - [Phones and tablets](#phones-and-tablets)
   - [All controls](#all-controls)
 - [Styling](#styling)
 - [Other exports](#other-exports)
@@ -48,12 +49,26 @@ _The [quick start](#quick-start) example, with the_ Node to Display _list open._
 - **Filter out nodes**: a checkbox next to each report in the _Node to Display_ list shows or hides it
 - **Show Dependency 1 and 2**: highlight the whole chain of parents or children of a report in two colors, and dim the rest
 - **Details panel** (double click): the report, its group, its parents and children, one level or all levels; click a name to jump to it
-- **Save to clipboard** (right click): copies the same information as the details panel
+- **Save to clipboard** (right click, or the button in the details panel): copies the same information as the details panel
+- **Phones and tablets**: drag to move, pinch to zoom, tap a report for its details; the top controls fold behind an _Options_ button, one control per line, and on a narrow screen the details panel opens under the graph ([more](#phones-and-tablets))
 - **Export SVG** button: downloads the whole graph as a vector `graph.svg` file (a static image, not interactive)
 - **Text size buttons** (− / +) for the top row, the details panel and the graph
 - **Configurable** colors, text sizes and grid spacing
 
 ## Release notes
+
+### 2.1.0 (2026-11-15)
+
+- **Phones and tablets**: on a touch screen up to 1100px wide, on any screen under 640px wide, and on a screen under 520px high,
+  the top controls fold behind an _Options_ button; open it to get one control per line. Under 640px wide the details
+  panel opens under the graph instead of beside it. See [Phones and tablets](#phones-and-tablets)
+- **Tap a report** on a touch screen to open its details panel (there is no double click on a phone)
+- **Save to clipboard** is also a button in the details panel, so it works without a right click
+- **Bigger touch targets** on touch screens: switches, buttons, list rows and checkboxes
+- **Fixes**: no more "trying to drag a node that is not initialized" warnings from React Flow while dragging; the
+  "parent container needs a width and a height" warning is no longer shown while the browser window is still opening;
+  search lists and the right click menu close on a tap outside; the right click menu stays inside the screen
+- No change to `create_graph` or its options: existing code works as before
 
 ### 2.0.2 (2026-11-14)
 
@@ -143,7 +158,7 @@ npm install react-beauti-graph@latest
 Or from the [GitHub release](https://github.com/ramasco/react-beauti-graph/releases/latest):
 
 ```bash
-npm install https://github.com/ramasco/react-beauti-graph/releases/download/v2.0.2/react-beauti-graph-2.0.2.tgz
+npm install https://github.com/ramasco/react-beauti-graph/releases/download/v2.1.0/react-beauti-graph-2.1.0.tgz
 ```
 
 Requires React 18 or newer. React Flow (`@xyflow/react`) is installed automatically.
@@ -363,6 +378,19 @@ at the graph. Pick what to resize in the dropdown, then click **−** or **+**:
 - Sizes are not saved: they go back to the starting size when the page is reloaded.
 - With a large graph text, reports can touch each other; increase `offsetX` and `offsetY` to give them more room.
 
+### Phones and tablets
+
+The graph adapts to its own size and to the kind of screen; nothing needs to be configured.
+
+| When                                                                             | What changes                                                                                                                                      |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Touch screen up to 1100px wide, any screen under 640px wide, or under 520px high | The top controls fold behind an _Options_ button. Press it to show them, one control per line; press it again to give the room back to the graph. |
+| Under 640px wide                                                                 | The details panel opens under the graph instead of on its right.                                                                                  |
+| Touch screen                                                                     | Tap a report to open its details panel. Pinch to zoom, drag to move the view or a box. Buttons, switches and list rows are bigger.                |
+
+With no right click on a touch screen, use the _Save to clipboard_ button in the details panel. The sizes are those of
+the graph itself, not of the window, so a graph in a small part of a desktop page folds its controls too.
+
 ### All controls
 
 **Top row**
@@ -389,12 +417,14 @@ In all search boxes, use the arrow keys and Enter to pick, Escape to close the l
 | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
 | Double click a report                           | Opens the details panel: group, parent reports and child reports. Click a name there to jump to it.          |
 | Right click a report                            | _Save to clipboard_: copies the same information as text.                                                    |
+| Tap a report (touch screen)                     | Opens the details panel, like a double click. _Save to clipboard_ is a button in the panel.                  |
 | _One level / All levels_ switch (details panel) | Lists only the direct parents and children, or the whole chains.                                             |
 | Drag a report                                   | Moves it. The group box around it and the arrows follow. _Reset layout_ in the top row puts everything back. |
 | Drag a group box                                | Moves the group with all its reports.                                                                        |
-| Scroll / drag the background                    | Zoom / move the view.                                                                                        |
+| Scroll / drag the background                    | Zoom / move the view. On a touch screen: pinch to zoom, drag with one finger to move.                        |
 
-When the window is too narrow, the top row continues on a second line.
+When the window is too narrow, the top row continues on a second line. On phones and tablets the top row folds behind
+an _Options_ button (see [Phones and tablets](#phones-and-tablets)).
 
 ## Styling
 

@@ -76,18 +76,18 @@ export function NodeSearch({
     setOpen(false);
   };
 
-  // Close the list when clicking outside the search box
+  // Close the list when clicking (or tapping) outside the search box
   useEffect(() => {
     if (!open) {
       return undefined;
     }
-    const onMouseDown = (e: MouseEvent): void => {
+    const onPointerDown = (e: PointerEvent): void => {
       if (!boxRef.current?.contains(e.target as Node)) {
         close();
       }
     };
-    document.addEventListener('mousedown', onMouseDown);
-    return () => document.removeEventListener('mousedown', onMouseDown);
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
   });
 
   // Keep the highlighted match visible while using the arrow keys

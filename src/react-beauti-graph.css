@@ -250,9 +250,11 @@
   display: flex;
 }
 
+/* Never squeezed to nothing by the controls or the details panel: React Flow needs some height to
+   draw (and warns without it), also in the instant before the controls fold on a small screen */
 .rbg-graph .rbg-flow {
   flex: 1;
-  min-height: 0;
+  min-height: 48px;
   min-width: 0;
   background: #fff;
 }
@@ -454,4 +456,175 @@
 .rbg-graph .export-svg:focus-visible {
   outline: 2px solid #99c7ff;
   outline-offset: 2px;
+}
+
+/* ---- Touch screens ---- */
+
+.rbg-graph .node-search > input {
+  box-sizing: border-box;
+}
+
+/* No text selection bubble or grey flash when a report is pressed */
+.rbg-graph .rbg-report,
+.rbg-graph .rbg-group {
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Details panel: Save to clipboard */
+.rbg-graph .node-info-panel .reset-layout {
+  display: block;
+  margin: 4px 0;
+}
+
+/* A finger needs bigger targets than a mouse */
+@media (pointer: coarse) {
+  .rbg-graph .help-icon {
+    width: 32px;
+    height: 32px;
+    font-size: 18px;
+  }
+
+  .rbg-graph .switch {
+    width: 50px;
+    height: 28px;
+    border-radius: 14px;
+  }
+
+  .rbg-graph .switch-knob {
+    top: 3px;
+    left: 3px;
+    width: 22px;
+    height: 22px;
+  }
+
+  .rbg-graph .switch[aria-checked='true'] .switch-knob {
+    left: 25px;
+  }
+
+  .rbg-graph .node-search-clear {
+    padding: 6px 8px;
+    font-size: 20px;
+  }
+
+  .rbg-graph .node-search-list li,
+  .rbg-graph .node-info-panel li button,
+  .rbg-graph .node-context-menu button {
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+  .rbg-graph .node-search-list li input[type='checkbox'] {
+    width: 1.2em;
+    height: 1.2em;
+  }
+
+  .rbg-graph .node-info-header button {
+    padding: 4px 10px;
+    font-size: 1.4em;
+  }
+}
+
+/* ---- Compact layout (.rbg-compact): the graph is under 640px wide or under 520px high (a phone, upright
+   or on its side, or a small container): the top controls fold away, so the graph keeps its room.
+   Under 640px wide (.rbg-narrow) the controls and the details panel are also stacked.
+   The class is set by createGraph.tsx from the size of the graph itself and the kind of screen. ---- */
+
+/* Smaller text than on a desktop, but never under 16px (iOS zooms the page on smaller inputs) */
+.rbg-graph.rbg-compact .controls {
+  font-size: max(16px, calc(var(--rbg-top-controls-font-size, 14px) * 0.75));
+  padding: 0.5em 0.6em;
+}
+
+.rbg-graph.rbg-compact .node-search > input,
+.rbg-graph.rbg-compact .node-search-list li {
+  font-size: 1em;
+}
+
+/* Folded: only the Options button */
+.rbg-graph.rbg-compact .controls.collapsed > :not(.controls-toggle) {
+  display: none;
+}
+
+/* Options open: one control per line */
+.rbg-graph.rbg-compact .controls > * {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
+/* A label over its box, the box as wide as the screen */
+.rbg-graph.rbg-compact .control-group {
+  display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
+  white-space: normal;
+}
+
+.rbg-graph.rbg-compact .control-group > label,
+.rbg-graph.rbg-compact .control-group > .node-search,
+.rbg-graph.rbg-compact .control-group > .track-switch {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
+.rbg-graph.rbg-compact .node-search > input {
+  width: 100%;
+  min-width: 0;
+}
+
+.rbg-graph.rbg-compact .node-search-list {
+  max-height: 40vh;
+}
+
+/* The Options button keeps its own width */
+.rbg-graph.rbg-compact .controls > .controls-toggle {
+  flex: 0 0 auto;
+}
+
+/* Text size controls: on their own line, from the left like the rest */
+.rbg-graph.rbg-compact .font-size-buttons {
+  margin-left: 0;
+}
+
+/* Reset layout and Export SVG: full-width buttons, easy to hit with a finger */
+.rbg-graph.rbg-compact .controls > .reset-layout:not(.controls-toggle),
+.rbg-graph.rbg-compact .export-svg {
+  margin-left: 0;
+  padding-top: 0.5em;
+  padding-bottom: 0.5em;
+}
+
+/* The help text spans the screen instead of hanging off its right edge */
+.rbg-graph.rbg-compact .help {
+  position: static;
+}
+
+.rbg-graph.rbg-compact .help-tooltip {
+  top: 100%;
+  left: 8px;
+  right: 8px;
+  width: auto;
+}
+
+/* The details panel opens under the graph instead of beside it */
+.rbg-graph.rbg-narrow .graph-area {
+  flex-direction: column;
+}
+
+.rbg-graph.rbg-narrow .node-info-panel {
+  width: auto;
+  max-height: 45%;
+  padding: 10px 12px;
+  border-left: 0;
+  border-top: 1px solid #ddd;
+}
+
+.rbg-graph.rbg-compact .node-info-panel {
+  font-size: max(15px, calc(var(--rbg-right-display-font-size, 14px) * 0.85));
+}
+
+.rbg-graph.rbg-compact .node-info-header h2,
+.rbg-graph.rbg-compact .node-info-panel h3,
+.rbg-graph.rbg-compact .node-info-panel li button {
+  font-size: 1em;
 }

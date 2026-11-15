@@ -12,6 +12,7 @@ body {
 
 #root {
   height: 100vh;
+  height: 100dvh; /* phones: the part of the screen the browser bars leave free */
   display: flex;
   flex-direction: column;
 }

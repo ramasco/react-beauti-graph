@@ -8,7 +8,7 @@
  * this file draws it.
  */
 
-import { useCallback, useEffect, useId, useMemo, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, FC } from 'react';
 import { Handle, Position, ReactFlow, ReactFlowProvider, useInternalNode, useReactFlow } from '@xyflow/react';
 import type { Edge, EdgeProps, EdgeTypes, Node, NodeChange, NodeProps, NodeTypes } from '@xyflow/react';
@@ -84,6 +84,19 @@ const FONT_AREAS: readonly (readonly [FontArea, string])[] = [
 const SELECT_ZOOM = 1.8;
 const FIT_PADDING = 0.1;
 const ANIMATION_MS = 400;
+// Compact layout, for a phone, a tablet or a small container: the top controls fold behind an Options
+// button. It is used below NARROW_WIDTH (the details panel then also moves under the graph), below
+// SHORT_HEIGHT (a phone on its side), and on a touch screen below TOUCH_WIDTH (phones and tablets,
+// whatever their size in CSS pixels).
+const NARROW_WIDTH = 640;
+const SHORT_HEIGHT = 520;
+const TOUCH_WIDTH = 1100;
+const TOUCH_QUERY = '(pointer: coarse)';
+// Room kept for the context menu, so it does not open past the edge of the screen
+const MENU_ROOM = { width: 180, height: 60 };
+// How long the graph may have no size before React Flow's "needs a width and a height" warning is shown:
+// a browser window that is still opening, or being resized, can be 0 or 1px wide for a moment
+const SIZE_WARNING_DELAY_MS = 1000;
 
 /** What a report box needs to draw itself */
 interface ReportData extends Record<string, unknown> {
@@ -303,6 +316,48 @@ export function create_graph(
     const [hiddenIds, setHiddenIds] = useState<Set<string>>(() => new Set()); // reports unchecked in "Node to Display"
     // Center of every report the user dragged (alone, or with the group box it is in)
     const [moved, setMoved] = useState<Record<string, Point>>({});
+    const rootRef = useRef<HTMLDivElement>(null);
+    const [size, setSize] = useState({ width: Infinity, height: Infinity }); // of the graph, in CSS px
+    const [touch, setTouch] = useState(false); // the main pointer is a finger, see TOUCH_QUERY
+    const narrow = size.width < NARROW_WIDTH;
+    // The top controls fold away
+    const compact = narrow || size.height < SHORT_HEIGHT || (touch && size.width < TOUCH_WIDTH);
+    const [controlsOpen, setControlsOpen] = useState(false); // compact layout: all the top controls shown
+    const lastPointer = useRef('mouse'); // 'touch' when the last press was a finger
+
+    // Follow the size of the graph itself (not of the window), so it also adapts inside a small container
+    useEffect(() => {
+      const root = rootRef.current;
+      if (!root || typeof ResizeObserver === 'undefined') {
+        return undefined;
+      }
+      const observer = new ResizeObserver((entries) => {
+        const entry = entries[0];
+        if (entry) {
+          setSize({ width: entry.contentRect.width, height: entry.contentRect.height });
+        }
+      });
+      observer.observe(root);
+      return () => {
+        observer.disconnect();
+      };
+    }, []);
+
+    // Touch screen or not (it can change, e.g. a laptop with a touch screen, or the browser's phone view)
+    useEffect(() => {
+      if (typeof window.matchMedia !== 'function') {
+        return undefined;
+      }
+      const query = window.matchMedia(TOUCH_QUERY);
+      const update = (): void => {
+        setTouch(query.matches);
+      };
+      update();
+      query.addEventListener('change', update);
+      return () => {
+        query.removeEventListener('change', update);
+      };
+    }, []);
 
     // Every box at its place on the canvas (and the size of its text). Group boxes are drawn around
     // their reports wherever those are, so they follow a report that is dragged.
@@ -328,6 +383,9 @@ export function create_graph(
     const hidden = useMemo(() => getHiddenIds(ALL_ELEMENTS, hiddenIds), [hiddenIds]);
 
     const reportFont = REPORT_FONT_SIZE + fontDeltas.graph;
+    // Every box is drawn at exactly the size given here, so it is also passed as `measured`: the nodes are
+    // rebuilt on every drag step, and without it React Flow would treat them as not measured yet
+    // ("trying to drag a node that is not initialized") until it measures them again.
     const nodes = useMemo((): (ReportNode | GroupNode)[] => {
       const groupRects = new Map(placed.groups.map((g) => [g.id, g.rect]));
       // A group must come before the reports inside it
@@ -337,6 +395,7 @@ export function create_graph(
         position: { x: g.rect.x, y: g.rect.y },
         width: g.rect.width,
         height: g.rect.height,
+        measured: { width: g.rect.width, height: g.rect.height },
         data: { label: g.label, fontSize: g.fontSize },
         hidden: hidden.has(g.id),
         selectable: false,
@@ -351,6 +410,7 @@ export function create_graph(
           position: { x: r.rect.x - origin.x, y: r.rect.y - origin.y },
           width: r.rect.width,
           height: r.rect.height,
+          measured: { width: r.rect.width, height: r.rect.height },
           data: {
             label: r.label,
             fontSize: reportFont,
@@ -409,12 +469,12 @@ export function create_graph(
       [detailsId, allLevels]
     );
 
-    // Close the context menu on outside click or Escape
+    // Close the context menu on outside click (or tap) or Escape
     useEffect(() => {
       if (!contextMenu) {
         return undefined;
       }
-      const onMouseDown = (e: MouseEvent): void => {
+      const onPointerDown = (e: PointerEvent): void => {
         if (!(e.target as Element).closest('.node-context-menu')) {
           setContextMenu(null);
         }
@@ -424,23 +484,26 @@ export function create_graph(
           setContextMenu(null);
         }
       };
-      document.addEventListener('mousedown', onMouseDown);
+      document.addEventListener('pointerdown', onPointerDown);
       document.addEventListener('keydown', onKeyDown);
       return () => {
-        document.removeEventListener('mousedown', onMouseDown);
+        document.removeEventListener('pointerdown', onPointerDown);
         document.removeEventListener('keydown', onKeyDown);
       };
     }, [contextMenu]);
+
+    const copyText = (text: string): void => {
+      navigator.clipboard.writeText(text).catch((err: unknown) => {
+        console.error('Failed to copy:', err);
+      });
+    };
 
     const copyToClipboard = (): void => {
       if (contextMenu === null) {
         return;
       }
-      const { copyText } = contextMenu;
       setContextMenu(null);
-      navigator.clipboard.writeText(copyText).catch((err: unknown) => {
-        console.error('Failed to copy:', err);
-      });
+      copyText(contextMenu.copyText);
     };
 
     // Exports the graph as it is on the screen: boxes, colors and what is dimmed or hidden
@@ -557,6 +620,26 @@ export function create_graph(
     }, [selectedId, placed, flow]);
 
     // The graph fills the window when it first appears
+    // React Flow warns when the graph has no size. That also happens for a moment while the browser
+    // window opens or is resized (it can be 1px wide), so that warning is only shown if the graph still
+    // has no size a moment later: then the page really gives it no room. Other messages are shown at once.
+    const onFlowError = useCallback((code: string, message: string): void => {
+      const warn = (): void => {
+        console.warn(`[React Flow]: ${message} Help: https://reactflow.dev/error#${code}`);
+      };
+      if (code !== '004') {
+        warn();
+        return;
+      }
+      window.setTimeout(() => {
+        const root = rootRef.current;
+        const flowBox = root?.querySelector<HTMLElement>('.rbg-flow');
+        if (root?.isConnected && flowBox && (flowBox.offsetWidth === 0 || flowBox.offsetHeight === 0)) {
+          warn();
+        }
+      }, SIZE_WARNING_DELAY_MS);
+    }, []);
+
     const onInit = useCallback((): void => {
       void flow.fitView({ padding: FIT_PADDING });
     }, [flow]);
@@ -599,7 +682,12 @@ export function create_graph(
 
     return (
       <div
-        className="rbg-graph"
+        ref={rootRef}
+        className={['rbg-graph', compact && 'rbg-compact', narrow && 'rbg-narrow'].filter(Boolean).join(' ')}
+        // Remembers whether the last press was a finger: a tap then opens the details panel
+        onPointerDownCapture={(e) => {
+          lastPointer.current = e.pointerType;
+        }}
         style={
           {
             ...CSS_VARS,
@@ -612,7 +700,18 @@ export function create_graph(
           } as CSSProperties
         }
       >
-        <div className="controls">
+        {/* Compact layout: only the Options button until it is pressed, then one control per line */}
+        <div className={compact && !controlsOpen ? 'controls collapsed' : 'controls'}>
+          {compact && (
+            <button
+              type="button"
+              className="reset-layout controls-toggle"
+              aria-expanded={controlsOpen}
+              onClick={() => setControlsOpen((on) => !on)}
+            >
+              Options {controlsOpen ? '▴' : '▾'}
+            </button>
+          )}
           {/* Each label stays next to its box when the row wraps */}
           <span className="control-group">
             <label htmlFor={`${uid}-search`}>Node to Display:</label>
@@ -678,9 +777,11 @@ export function create_graph(
               ?
             </button>
             <span id={`${uid}-help`} role="tooltip" className="help-tooltip">
-              <strong>Double click</strong> on a node to see its information, parents and children.
+              <strong>Double click</strong> (or <strong>tap</strong> on a touch screen) on a node to see its
+              information, parents and children.
               <br />
-              <strong>Right click</strong> on a node to save the same information to the clipboard.
+              <strong>Right click</strong> on a node, or <strong>Save to clipboard</strong> in its details, to
+              save the same information to the clipboard.
             </span>
           </span>
           <span className="font-size-buttons">
@@ -725,6 +826,7 @@ export function create_graph(
               nodeTypes={NODE_TYPES}
               edgeTypes={EDGE_TYPES}
               onInit={onInit}
+              onError={onFlowError}
               onNodesChange={onNodesChange}
               nodesDraggable
               nodesConnectable={false}
@@ -750,8 +852,14 @@ export function create_graph(
                   });
                 }
               }}
-              // Close the menu on any other interaction with the graph
-              onNodeClick={() => setContextMenu(null)}
+              // Close the menu on any other interaction with the graph.
+              // On a touch screen there is no double click: a tap on a report shows its details.
+              onNodeClick={(_event, node) => {
+                setContextMenu(null);
+                if (lastPointer.current === 'touch' && node.type === 'report') {
+                  setDetailsId(node.id);
+                }
+              }}
               onPaneClick={() => setContextMenu(null)}
               onPaneContextMenu={(event) => {
                 event.preventDefault();
@@ -789,6 +897,14 @@ export function create_graph(
                 </button>
                 <span className={allLevels ? 'children on' : ''}>All levels</span>
               </div>
+              {/* Same as the right click menu, for touch screens (no right click there) */}
+              <button
+                type="button"
+                className="reset-layout"
+                onClick={() => copyText(formatNodeInfo(nodeInfo))}
+              >
+                Save to clipboard
+              </button>
               {infoSections(nodeInfo).map(([title, list]) => (
                 <section key={title}>
                   <h3>
@@ -812,7 +928,10 @@ export function create_graph(
         {contextMenu && (
           <div
             className="node-context-menu"
-            style={{ left: contextMenu.x, top: contextMenu.y }}
+            style={{
+              left: Math.max(0, Math.min(contextMenu.x, window.innerWidth - MENU_ROOM.width)),
+              top: Math.max(0, Math.min(contextMenu.y, window.innerHeight - MENU_ROOM.height)),
+            }}
             onContextMenu={(e) => e.preventDefault()}
           >
             <button type="button" onClick={copyToClipboard}>
